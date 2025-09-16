@@ -30,41 +30,152 @@ import HomeThree from "./components/HomeThree/index.jsx";
 import HomeFour from "./components/HomeFour/index.jsx";
 import HomeFive from "./components/HomeFive/index.jsx";
 
+// Import context providers
+import { AuthProvider } from "./contexts/AuthContext";
+import { CartProvider } from "./contexts/CartContext";
+import { FavoriteProvider } from "./contexts/FavoriteContext";
+
 const router = createBrowserRouter([
-  { path: "/", element: <Home /> },
-  { path: "/home-two", element: <HomeTwo /> },
-  { path: "/home-three", element: <HomeThree /> },
-  { path: "/home-four", element: <HomeFour /> },
-  { path: "/home-five", element: <HomeFive /> },
-  { path: "/all-products", element: <AllProductPage /> },
-  { path: "/single-product", element: <SingleProductPage /> },
-  { path: "/cart", element: <CardPage /> },
-  { path: "/checkout", element: <CheakoutPage /> },
-  { path: "/wishlist", element: <Wishlist /> },
-  { path: "/flash-sale", element: <FlashSale /> },
-  { path: "/saller-page", element: <SallerPage /> },
-  { path: "/products-compaire", element: <ProductsCompaire /> },
-  { path: "/sallers", element: <Sallers /> },
-  { path: "/about", element: <About /> },
-  { path: "/blogs", element: <Blogs /> },
-  { path: "/blogs/blog", element: <Blog /> },
-  { path: "/tracking-order", element: <TrackingOrder /> },
-  { path: "/contact", element: <Contact /> },
-  { path: "/faq", element: <Faq /> },
-  { path: "/login", element: <Login /> },
-  { path: "/signup", element: <Signup /> },
-  { path: "/verify-email", element: <VerifyEmail /> },
-  { path: "/forgot-password", element: <ForgotPassword /> },
-  { path: "/reset-password", element: <ResetPassword /> },
-  { path: "/profile", element: <Profile /> },
-  { path: "/become-saller", element: <BecomeSaller /> },
-  { path: "/privacy-policy", element: <PrivacyPolicy /> },
-  { path: "/terms-condition", element: <TermsCondition /> },
-  { path: "*", element: <FourZeroFour /> },
+  { 
+    path: "/", 
+    element: <Home /> 
+  },
+  { 
+    path: "/home-two", 
+    element: <HomeTwo /> 
+  },
+  { 
+    path: "/home-three", 
+    element: <HomeThree /> 
+  },
+  { 
+    path: "/home-four", 
+    element: <HomeFour /> 
+  },
+  { 
+    path: "/home-five", 
+    element: <HomeFive /> 
+  },
+  { 
+    path: "/all-products", 
+    element: <AllProductPage /> 
+  },
+  { 
+    path: "/single-product/:id",  // Fixed: Added parameter for product ID
+    element: <SingleProductPage /> 
+  },
+  { 
+    path: "/cart", 
+    element: <CardPage /> 
+  },
+  { 
+    path: "/checkout", 
+    element: <CheakoutPage /> 
+  },
+  { 
+    path: "/wishlist", 
+    element: <Wishlist /> 
+  },
+  { 
+    path: "/flash-sale", 
+    element: <FlashSale /> 
+  },
+  { 
+    path: "/saller-page/:id?",  // Optional parameter for seller ID
+    element: <SallerPage /> 
+  },
+  { 
+    path: "/products-compaire", 
+    element: <ProductsCompaire /> 
+  },
+  { 
+    path: "/sallers", 
+    element: <Sallers /> 
+  },
+  { 
+    path: "/about", 
+    element: <About /> 
+  },
+  { 
+    path: "/blogs", 
+    element: <Blogs /> 
+  },
+  { 
+    path: "/blogs/:id",  // Added parameter for blog ID
+    element: <Blog /> 
+  },
+  { 
+    path: "/tracking-order", 
+    element: <TrackingOrder /> 
+  },
+  { 
+    path: "/contact", 
+    element: <Contact /> 
+  },
+  { 
+    path: "/faq", 
+    element: <Faq /> 
+  },
+  { 
+    path: "/login", 
+    element: <Login /> 
+  },
+  { 
+    path: "/signup", 
+    element: <Signup /> 
+  },
+  { 
+    path: "/verify-email", 
+    element: <VerifyEmail /> 
+  },
+  { 
+    path: "/forgot-password", 
+    element: <ForgotPassword /> 
+  },
+  { 
+    path: "/reset-password/:token?",  // Optional token parameter
+    element: <ResetPassword /> 
+  },
+  { 
+    path: "/profile", 
+    element: <Profile /> 
+  },
+  { 
+    path: "/become-saller", 
+    element: <BecomeSaller /> 
+  },
+  { 
+    path: "/privacy-policy", 
+    element: <PrivacyPolicy /> 
+  },
+  { 
+    path: "/terms-condition", 
+    element: <TermsCondition /> 
+  },
+  { 
+    path: "/category/:categoryId",  // Added category route
+    element: <AllProductPage /> 
+  },
+  { 
+    path: "/search",  // Added search route
+    element: <AllProductPage /> 
+  },
+  { 
+    path: "*", 
+    element: <FourZeroFour /> 
+  },
 ]);
 
 function Routers() {
-  return <RouterProvider router={router} />;
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <FavoriteProvider>
+          <RouterProvider router={router} />
+        </FavoriteProvider>
+      </CartProvider>
+    </AuthProvider>
+  );
 }
 
 export default Routers;

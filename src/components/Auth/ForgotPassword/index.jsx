@@ -43,7 +43,7 @@ export default function ForgotPassword() {
     setMessage('');
     setError(null);
 
-    const forgotPasswordEndpoint = "http://localhost:8080/api/users/forgot";
+    const forgotPasswordEndpoint = "http://localhost:5521/api/users/forgot";
 
     try {
       const response = await fetch(forgotPasswordEndpoint, {

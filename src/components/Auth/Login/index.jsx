@@ -56,7 +56,7 @@ export default function Login() {
     }
 
     // Login endpoint - update with your actual backend URL
-    const loginEndpoint = "http://localhost:8080/api/users/login";
+    const loginEndpoint = "http://localhost:5521/api/users/login";
 
     try {
       const response = await fetch(loginEndpoint, {

@@ -72,7 +72,7 @@ export default function Middlebar({ className, type }) {
   const fetchCartCount = async (token) => {
     try {
       // Update this endpoint to match your actual cart count API
-      const response = await fetch('http://localhost:8080/api/cart', {
+      const response = await fetch('http://localhost:5521/api/cart', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -95,7 +95,7 @@ export default function Middlebar({ className, type }) {
   const fetchWishlistCount = async (token) => {
     try {
       // Update this endpoint to match your actual favorites count API
-      const response = await fetch('http://localhost:8080/favorites', {
+      const response = await fetch('http://localhost:5521/favorites', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

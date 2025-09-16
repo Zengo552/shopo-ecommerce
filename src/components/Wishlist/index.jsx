@@ -6,6 +6,12 @@ import PageTitle from "../Helpers/PageTitle";
 import Layout from "../Partials/Layout";
 import ProductsTable from "./ProductsTable";
 
+// Create axios instance with base configuration
+const api = axios.create({
+  baseURL: 'http://localhost:5521',
+  timeout: 10000, // 10 second timeout
+});
+
 export default function Wishlist({ wishlist = true }) {
   const [favoriteProducts, setFavoriteProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,28 +30,68 @@ export default function Wishlist({ wishlist = true }) {
         return;
       }
 
-      const response = await axios.get('http://localhost:8080/favorites', {
+      console.log("Fetching favorites from backend...");
+      
+      const response = await api.get('/favorites', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
+      console.log("Backend response:", response.data);
+
       if (response.data.success) {
-        setFavoriteProducts(response.data.favorites || []);
+        // Map the backend response to match frontend expectations
+        const mappedProducts = (response.data.favorites || []).map(favorite => ({
+          id: favorite.productId,        // Map productId to id
+          name: favorite.productName,    // Map productName to name
+          price: favorite.price,
+          imageUrl: favorite.imageUrl,
+          // Add default values for missing fields
+          description: favorite.description || "", // Use description if available
+          color: favorite.color || null,           // Use color if available
+          size: favorite.size || "Standard"        // Use size if available
+        }));
+        console.log("Mapped products:", mappedProducts);
+        setFavoriteProducts(mappedProducts);
       } else {
-        setError(response.data.message || "Failed to load wishlist");
+        const errorMsg = response.data.message || "Failed to load wishlist";
+        console.error("Backend returned error:", errorMsg);
+        setError(errorMsg);
       }
     } catch (err) {
       console.error("Failed to fetch favorites:", err);
-      if (err.response && err.response.status === 401) {
-        setError("Your session has expired. Please log in again.");
-        // Clear invalid token
-        localStorage.removeItem('authToken');
-        window.dispatchEvent(new Event('authChange'));
-      } else if (err.response && err.response.status === 404) {
-        setError("Wishlist endpoint not found. Please check the API URL.");
+      
+      // Enhanced error logging
+      if (err.response) {
+        console.error("Response data:", err.response.data);
+        console.error("Response status:", err.response.status);
+        console.error("Response headers:", err.response.headers);
+        
+        switch (err.response.status) {
+          case 401:
+            setError("Your session has expired. Please log in again.");
+            localStorage.removeItem('authToken');
+            window.dispatchEvent(new Event('authChange'));
+            break;
+          case 500:
+            setError("Server error. Please check the backend logs for details.");
+            break;
+          case 404:
+            setError("Wishlist service not found. Please check if the backend is running.");
+            break;
+          case 403:
+            setError("Access forbidden. You don't have permission to view favorites.");
+            break;
+          default:
+            setError(`Failed to load your wishlist (Status: ${err.response.status}). Please try again later.`);
+        }
+      } else if (err.request) {
+        console.error("No response received:", err.request);
+        setError("Network error. Please check if the backend server is running on port 5521.");
       } else {
-        setError("Failed to load your wishlist. Please try again later.");
+        console.error("Request setup error:", err.message);
+        setError("An unexpected error occurred while setting up the request.");
       }
     } finally {
       setLoading(false);
@@ -57,7 +103,12 @@ export default function Wishlist({ wishlist = true }) {
     try {
       const token = localStorage.getItem('authToken');
       
-      const response = await axios.delete(`http://localhost:8080/favorites/${productId}`, {
+      if (!token) {
+        alert("Please log in to remove items");
+        return;
+      }
+
+      const response = await api.delete(`/favorites/${productId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -92,10 +143,14 @@ export default function Wishlist({ wishlist = true }) {
     try {
       const token = localStorage.getItem('authToken');
       
-      // This would require a new endpoint in your Spring Boot controller
-      // For now, we'll remove items one by one
+      if (!token) {
+        alert("Please log in to clear wishlist");
+        return;
+      }
+
+      // Remove items one by one
       const deletePromises = favoriteProducts.map(product => 
-        axios.delete(`http://localhost:8080/favorites/${product.id}`, {
+        api.delete(`/favorites/${product.id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -104,9 +159,60 @@ export default function Wishlist({ wishlist = true }) {
       
       await Promise.all(deletePromises);
       setFavoriteProducts([]);
+      alert("Wishlist cleared successfully!");
     } catch (err) {
       console.error("Clear wishlist failed:", err);
       alert('Failed to clear wishlist. Please try again.');
+    }
+  };
+
+  // Function to add all wishlist items to cart
+  const addAllToCart = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        alert("Please log in to add items to cart");
+        return;
+      }
+
+      if (favoriteProducts.length === 0) {
+        alert("Your wishlist is empty!");
+        return;
+      }
+
+      // Add each product to cart
+      const addToCartPromises = favoriteProducts.map(product => 
+        api.post('/api/cart/items', {
+          productId: product.id,
+          quantity: 1
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      );
+
+      const results = await Promise.allSettled(addToCartPromises);
+      
+      const successfulAdds = results.filter(result => 
+        result.status === 'fulfilled' && result.value.data.success
+      );
+      const failedAdds = results.filter(result => 
+        result.status === 'rejected' || !result.value?.data?.success
+      );
+
+      if (successfulAdds.length > 0) {
+        alert(`Successfully added ${successfulAdds.length} items to cart!`);
+      }
+      
+      if (failedAdds.length > 0) {
+        alert(`Failed to add ${failedAdds.length} items to cart. They might be out of stock.`);
+      }
+    } catch (err) {
+      console.error("Add to cart failed:", err);
+      alert('Failed to add items to cart. Please try again.');
     }
   };
 
@@ -117,12 +223,23 @@ export default function Wishlist({ wishlist = true }) {
     }
   }, [wishlist]);
 
+  // Retry function for users to try again
+  const handleRetry = () => {
+    fetchFavorites();
+  };
+
   // Show loading state
   if (loading && wishlist) {
     return (
       <Layout>
         <div className="wishlist-page-wrapper w-full">
           <div className="container-x mx-auto">
+            <BreadcrumbCom
+              paths={[
+                { name: "home", path: "/" },
+                { name: "wishlist", path: "/wishlist" },
+              ]}
+            />
             <div className="flex justify-center items-center h-64">
               <div className="text-lg">Loading your wishlist...</div>
             </div>
@@ -144,8 +261,17 @@ export default function Wishlist({ wishlist = true }) {
                 { name: "wishlist", path: "/wishlist" },
               ]}
             />
-            <div className="flex justify-center items-center h-64">
-              <div className="text-red-500 text-lg">{error}</div>
+            <div className="flex flex-col justify-center items-center h-64 space-y-4">
+              <div className="text-red-500 text-lg text-center">{error}</div>
+              <button
+                onClick={handleRetry}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Try Again
+              </button>
+              <div className="text-sm text-gray-500">
+                Make sure the backend server is running on port 5521
+              </div>
             </div>
           </div>
         </div>
@@ -190,13 +316,16 @@ export default function Wishlist({ wishlist = true }) {
                   <button 
                     type="button"
                     onClick={clearWishlist}
+                    className="text-sm font-semibold text-qred mb-5 sm:mb-0 hover:text-red-700 transition-colors"
                   >
-                    <div className="w-full text-sm font-semibold text-qred mb-5 sm:mb-0">
-                      Clean Wishlist
-                    </div>
+                    Clean Wishlist
                   </button>
                   <div className="w-[180px] h-[50px]">
-                    <button type="button" className="yellow-btn">
+                    <button 
+                      type="button" 
+                      className="yellow-btn w-full h-full"
+                      onClick={addAllToCart}
+                    >
                       <div className="w-full text-sm font-semibold">
                         Add to Cart All
                       </div>

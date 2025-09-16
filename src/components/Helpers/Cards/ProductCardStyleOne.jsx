@@ -1,127 +1,287 @@
+// src/components/Helpers/Cards/ProductCardStyleOne.jsx
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useAuth } from "../../../contexts/AuthContext";
 import Compair from "../icons/Compair";
 import QuickViewIco from "../icons/QuickViewIco";
 import Star from "../icons/Star";
 import ThinLove from "../icons/ThinLove";
+import ThinBag from "../icons/ThinBag";
+import { favoriteAPI, cartAPI } from "../../../services/api";
 
-export default function ProductCardStyleOne({ datas, type }) {
-  const available =
-    (datas.cam_product_sale /
-      (datas.cam_product_available + datas.cam_product_sale)) *
-    100;
+export default function ProductCardStyleOne({ datas, type = 1 }) {
+  const { user } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isInCart, setIsInCart] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
+  
+  // Extract product data
+  const productId = datas.id;
+  const productName = datas.name || "Unnamed Product";
+  const productPrice = typeof datas.price === 'number' ? datas.price : parseFloat(datas.price || 0);
+  const originalPrice = datas.originalPrice || datas.price;
+  const discountPercentage = datas.discountPercentage || 0;
+  const averageRating = datas.averageRating || 0;
+  const reviewCount = datas.reviewCount || 0;
+  const productImage = datas.imageUrl || datas.images?.[0]?.src || `${import.meta.env.VITE_PUBLIC_URL}/assets/images/placeholder-product.png`;
+
+  useEffect(() => {
+    checkFavoriteStatus();
+    checkCartStatus();
+  }, [productId, user]);
+
+  const checkFavoriteStatus = async () => {
+    if (!user) {
+      setIsFavorite(false);
+      return;
+    }
+    
+    try {
+      const response = await favoriteAPI.getUserFavorites();
+      if (response.success) {
+        const favorites = response.favorites || [];
+        setIsFavorite(favorites.some(fav => fav.productId === productId));
+      }
+    } catch (error) {
+      console.error("Error checking favorite status:", error);
+    }
+  };
+
+  const checkCartStatus = async () => {
+    if (!user) {
+      setIsInCart(false);
+      return;
+    }
+    
+    try {
+      const response = await cartAPI.getCart();
+      if (response.success) {
+        const cartItems = response.cart?.cartItems || [];
+        setIsInCart(cartItems.some(item => item.productId === productId));
+      }
+    } catch (error) {
+      console.error("Error checking cart status:", error);
+    }
+  };
+
+  const handleAddToFavorites = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      alert("Please login to add to favorites");
+      return;
+    }
+
+    setIsAddingToWishlist(true);
+    try {
+      if (isFavorite) {
+        await favoriteAPI.removeFromFavorites(productId);
+        setIsFavorite(false);
+      } else {
+        await favoriteAPI.addToFavorites(productId);
+        setIsFavorite(true);
+      }
+    } catch (error) {
+      console.error("Error updating favorites:", error);
+      alert("Failed to update favorites");
+    } finally {
+      setIsAddingToWishlist(false);
+    }
+  };
+
+  const handleAddToCart = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      alert("Please login to add to cart");
+      return;
+    }
+
+    setIsAddingToCart(true);
+    try {
+      const cartItem = {
+        productId: productId,
+        quantity: 1
+      };
+      
+      await cartAPI.addOrUpdateItem(cartItem);
+      setIsInCart(true);
+      console.log("Product added to cart:", productId);
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      alert("Failed to add to cart");
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const formatPrice = (price) => {
+    const numPrice = typeof price === 'number' ? price : parseFloat(price || 0);
+    return isNaN(numPrice) ? "0.00" : numPrice.toFixed(2);
+  };
+
+  const calculateDiscountPrice = () => {
+    if (discountPercentage > 0) {
+      return productPrice * (1 - discountPercentage / 100);
+    }
+    return productPrice;
+  };
+
+  const discountedPrice = calculateDiscountPrice();
+
   return (
     <div
-      className="product-card-one w-full h-full bg-white relative group overflow-hidden"
+      className="product-card-one w-full h-full bg-white relative group overflow-hidden rounded-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
       style={{ boxShadow: "0px 15px 64px 0px rgba(0, 0, 0, 0.05)" }}
     >
-      <div
-        className="product-card-img w-full h-[300px]"
-        style={{
-          background: `url(${import.meta.env.VITE_PUBLIC_URL}/assets/images/${
-            datas.image
-          }) no-repeat center`,
-        }}
-      >
-        {/* product available progress */}
-        {datas.campaingn_product && (
-          <>
-            <div className="px-[30px] absolute left-0 top-3 w-full">
-              <div className="progress-title flex justify-between ">
-                <p className="text-xs text-qblack font-400 leading-6">
-                  Prodcuts Available
-                </p>
-                <span className="text-sm text-qblack font-600 leading-6">
-                  {datas.cam_product_available}
-                </span>
-              </div>
-              <div className="progress w-full h-[5px] rounded-[22px] bg-primarygray relative overflow-hidden">
-                <div
-                  style={{
-                    width: `${datas.campaingn_product ? 100 - available : 0}%`,
-                  }}
-                  className={`h-full absolute left-0 top-0  ${
-                    type === 3 ? "bg-qh3-blue" : "bg-qyellow"
-                  }`}
-                ></div>
-              </div>
-            </div>
-          </>
+      {/* Product Image Container */}
+      <div className="product-card-img w-full h-[300px] bg-gray-100 relative overflow-hidden">
+        {discountPercentage > 0 && (
+          <div className="absolute top-3 left-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+            -{discountPercentage}%
+          </div>
         )}
-        {/* product type */}
-        {datas.product_type && !datas.campaingn_product && (
-          <div className="product-type absolute right-[14px] top-[17px]">
-            <span
-              className={`text-[9px] font-700 leading-none py-[6px] px-3 uppercase text-white rounded-full tracking-wider ${
-                datas.product_type === "popular" ? "bg-[#19CC40]" : "bg-qyellow"
-              }`}
-            >
-              {datas.product_type}
+        
+        {!imageLoaded && (
+          <div className="absolute inset-0 bg-gray-200 animate-pulse"></div>
+        )}
+        
+        <img
+          src={productImage}
+          alt={productName}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
+          onLoad={() => setImageLoaded(true)}
+          onError={(e) => {
+            e.target.src = `${import.meta.env.VITE_PUBLIC_URL}/assets/images/placeholder-product.png`;
+            setImageLoaded(true);
+          }}
+        />
+
+        {/* Quick Actions Overlay */}
+        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <button
+            onClick={handleAddToCart}
+            disabled={isAddingToCart}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all transform translate-y-4 group-hover:translate-y-0 ${
+              type === 3 
+                ? "bg-blue-600 hover:bg-blue-700 text-white" 
+                : "bg-yellow-500 hover:bg-yellow-600 text-black"
+            } ${isAddingToCart ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            {isAddingToCart ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Adding...</span>
+              </div>
+            ) : isInCart ? (
+              "In Cart ✓"
+            ) : (
+              "Add To Cart"
+            )}
+          </button>
+        </div>
+      </div>
+      
+      {/* Product Details */}
+      <div className="product-card-details p-4 relative">
+        <Link to={`/single-product/${productId}`}>
+          <p className="title mb-2 text-[15px] font-semibold text-qblack leading-[24px] line-clamp-2 hover:text-blue-600 transition-colors">
+            {productName}
+          </p>
+        </Link>
+        
+        {/* Rating */}
+        {averageRating > 0 && (
+          <div className="flex items-center space-x-1 mb-2">
+            <div className="flex">
+              {Array.from({ length: 5 }, (_, i) => (
+                <Star
+                  key={i}
+                  className={`w-3 h-3 ${
+                    i < Math.floor(averageRating)
+                      ? "text-yellow-400 fill-current"
+                      : "text-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-xs text-gray-500">
+              ({reviewCount} review{reviewCount !== 1 ? 's' : ''})
             </span>
           </div>
         )}
-      </div>
-      <div className="product-card-details px-[30px] pb-[30px] relative">
-        {/* add to card button */}
-        <div className="absolute w-full h-10 px-[30px] left-0 top-40 group-hover:top-[85px] transition-all duration-300 ease-in-out">
-          <button
-            type="button"
-            className={type === 3 ? "blue-btn" : "yellow-btn"}
-          >
-            <div className="flex items-center space-x-3">
-              <span>
-                <svg
-                  width="14"
-                  height="16"
-                  viewBox="0 0 14 16"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="fill-current"
-                >
-                  <path d="M12.5664 4.14176C12.4665 3.87701 12.2378 3.85413 11.1135 3.85413H10.1792V3.43576C10.1792 2.78532 10.089 2.33099 9.86993 1.86359C9.47367 1.01704 8.81003 0.425438 7.94986 0.150881C7.53106 0.0201398 6.90607 -0.0354253 6.52592 0.0234083C5.47246 0.193372 4.57364 0.876496 4.11617 1.85052C3.89389 2.32772 3.80368 2.78532 3.80368 3.43576V3.8574H2.8662C1.74187 3.8574 1.51313 3.88028 1.41326 4.15483C1.36172 4.32807 0.878481 8.05093 0.6723 9.65578C0.491891 11.0547 0.324369 12.3752 0.201948 13.3688C-0.0106763 15.0815 -0.00423318 15.1077 0.00220999 15.1371V15.1404C0.0312043 15.2515 0.317925 15.5424 0.404908 15.6274L0.781834 16H13.1785L13.4588 15.7483C13.5844 15.6339 14 15.245 14 15.0521C14 14.9214 12.5922 4.21694 12.5664 4.14176ZM12.982 14.8037C12.9788 14.8266 12.953 14.8952 12.9079 14.9443L12.8435 15.0162H1.13943L0.971907 14.8331L1.63233 9.82901C1.86429 8.04766 2.07047 6.4951 2.19289 5.56684C2.24766 5.16154 2.27343 4.95563 2.28631 4.8543C2.72123 4.85103 4.62196 4.84776 6.98661 4.84776H11.6901L11.6966 4.88372C11.7481 5.1452 12.9594 14.5128 12.982 14.8037ZM4.77338 3.8574V3.48479C4.77338 3.23311 4.80559 2.88664 4.84103 2.72649C5.03111 1.90935 5.67864 1.24584 6.48726 1.03339C6.82553 0.948403 7.37964 0.97782 7.71791 1.10202H7.72113C8.0755 1.22296 8.36545 1.41907 8.63284 1.71978C9.06453 2.19698 9.2095 2.62516 9.2095 3.41615V3.8574H4.77338Z" />
-                </svg>
-              </span>
-              <span>Add To Cart</span>
-            </div>
-          </button>
-        </div>
-        <div className="reviews flex space-x-[1px] mb-3">
-          {Array.from(Array(datas.review), () => (
-            <span key={datas.review + Math.random()}>
-              <Star />
+
+        {/* Price */}
+        <div className="price flex items-center space-x-2">
+          <span className="offer-price text-qred font-bold text-[18px]">
+            ${formatPrice(discountedPrice)}
+          </span>
+          {discountPercentage > 0 && (
+            <span className="original-price text-gray-400 text-sm line-through">
+              ${formatPrice(originalPrice)}
             </span>
-          ))}
+          )}
         </div>
-        <Link to="/single-product">
-          <p className="title mb-2 text-[15px] font-600 text-qblack leading-[24px] line-clamp-2 hover:text-blue-600">
-            {datas.title}
+
+        {/* Category */}
+        {datas.categoryName && (
+          <p className="text-xs text-gray-500 mt-1">
+            {datas.categoryName}
           </p>
-        </Link>
-        <p className="price">
-          <span className="main-price text-qgray line-through font-600 text-[18px]">
-            {datas.price}
-          </span>
-          <span className="offer-price text-qred font-600 text-[18px] ml-2">
-            {datas.offer_price}
-          </span>
-        </p>
+        )}
       </div>
-      {/* quick-access-btns */}
-      <div className="quick-access-btns flex flex-col space-y-2 absolute group-hover:right-4 -right-10 top-20  transition-all duration-300 ease-in-out">
-        <a href="#">
-          <span className="w-10 h-10 flex justify-center items-center bg-primarygray rounded">
-            <QuickViewIco />
+      
+      {/* Quick Access Buttons */}
+      <div className="quick-access-btns flex flex-col space-y-2 absolute group-hover:right-3 -right-10 top-3 transition-all duration-300 ease-in-out">
+        {/* Quick View */}
+        <Link to={`/single-product/${productId}`}>
+          <span className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors group/quickview">
+            <QuickViewIco className="w-4 h-4 text-gray-600 group-hover/quickview:text-blue-600" />
           </span>
-        </a>
-        <a href="#">
-          <span className="w-10 h-10 flex justify-center items-center bg-primarygray rounded">
-            <ThinLove />
-          </span>
-        </a>
-        <a href="#">
-          <span className="w-10 h-10 flex justify-center items-center bg-primarygray rounded">
-            <Compair />
-          </span>
-        </a>
+        </Link>
+        
+        {/* Favorite */}
+        <button 
+          onClick={handleAddToFavorites}
+          disabled={isAddingToWishlist}
+          className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-red-50 transition-colors group/favorite disabled:opacity-50"
+        >
+          {isAddingToWishlist ? (
+            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <ThinLove 
+              filled={isFavorite}
+              className="w-4 h-4 transition-colors"
+              color={isFavorite ? "text-red-600" : "text-gray-600 group-hover/favorite:text-red-500"}
+            />
+          )}
+        </button>
+        
+        {/* Compare */}
+        <button className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors group/compare">
+          <Compair className="w-4 h-4 text-gray-600 group-hover/compare:text-green-600" />
+        </button>
+
+        {/* Add to Cart (Mobile/Alternative) */}
+        <button 
+          onClick={handleAddToCart}
+          disabled={isAddingToCart}
+          className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-green-50 transition-colors group/cart disabled:opacity-50 lg:hidden"
+        >
+          {isAddingToCart ? (
+            <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <ThinBag 
+              className="w-4 h-4 transition-colors"
+              color={isInCart ? "text-green-600" : "text-gray-600 group-hover/cart:text-green-500"}
+            />
+          )}
+        </button>
       </div>
     </div>
   );

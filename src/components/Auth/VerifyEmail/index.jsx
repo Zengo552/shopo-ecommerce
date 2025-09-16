@@ -39,7 +39,7 @@ export default function VerifyEmail() {
         setLoading(true);
         setStatusMessage({ text: "Verifying...", type: "info" });
 
-        const endpoint = "http://localhost:8080/api/users/verify";
+        const endpoint = "http://localhost:5521/api/users/verify";
 
         try {
             const response = await fetch(endpoint, {

@@ -23,7 +23,7 @@ export default function SearchBox({ className, type }) {
 
     try {
       // Construct the URL for your backend search endpoint
-      const response = await fetch(`http://localhost:8080/products/search?keyword=${encodeURIComponent(searchTerm)}`);
+      const response = await fetch(`http://localhost:5521/products/search?keyword=${encodeURIComponent(searchTerm)}`);
 
       if (!response.ok) {
         // Handle HTTP errors (e.g., 404, 500)

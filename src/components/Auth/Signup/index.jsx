@@ -59,7 +59,7 @@ export default function Signup() {
     }
 
     // Backend endpoint on port 8080. Update the path if needed.
-    const signupEndpoint = "http://localhost:8080/api/users/register";
+    const signupEndpoint = "http://localhost:5521/api/users/register";
 
     try {
       const response = await fetch(signupEndpoint, {

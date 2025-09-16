@@ -18,7 +18,7 @@ export default function Cart({ className, type }) {
         return;
       }
 
-      const response = await fetch('http://localhost:8080/api/cart', {
+      const response = await fetch('http://localhost:5521/api/cart', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -41,7 +41,7 @@ export default function Cart({ className, type }) {
   const removeFromCart = async (productId) => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`http://localhost:8080/api/cart/items/${productId}`, {
+      const response = await fetch(`http://localhost:5521/api/cart/items/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

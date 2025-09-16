@@ -13,7 +13,7 @@ export default function ProductsTable({ className, cartData, onCartUpdate }) {
     setUpdating(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`http://localhost:8080/api/cart/items/${productId}?newQuantity=${newQuantity}`, {
+      const response = await fetch(`http://localhost:5521/api/cart/items/${productId}?newQuantity=${newQuantity}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -35,7 +35,7 @@ export default function ProductsTable({ className, cartData, onCartUpdate }) {
     setUpdating(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`http://localhost:8080/api/cart/items/${productId}`, {
+      const response = await fetch(`http://localhost:5521/api/cart/items/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

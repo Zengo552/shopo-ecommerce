@@ -1,16 +1,15 @@
-export default function Star({ w = "18", h = "17" }) {
+// icons/Star.jsx
+export default function Star({ filled = false }) {
   return (
     <svg
-      width={w}
-      height={h}
-      viewBox="0 0 18 17"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      className="text-yellow-400"
     >
-      <path
-        d="M9 0L11.0206 6.21885H17.5595L12.2694 10.0623L14.2901 16.2812L9 12.4377L3.70993 16.2812L5.73056 10.0623L0.440492 6.21885H6.97937L9 0Z"
-        fill="#FFA800"
-      />
+      <path d="M7 1L9.16 4.84L13.5 5.5L10.5 8.5L11.16 12.84L7 10.84L2.84 12.84L3.5 8.5L0.5 5.5L4.84 4.84L7 1Z" />
     </svg>
   );
 }

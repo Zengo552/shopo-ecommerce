@@ -30,7 +30,7 @@ export default function CartPage({ cart = true }) {
         return;
       }
 
-      const response = await fetch('http://localhost:8080/api/cart', {
+      const response = await fetch('http://localhost:5521/api/cart', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

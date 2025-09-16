@@ -52,7 +52,7 @@ export default function ResetPassword() {
       return;
     }
 
-    const resetPasswordEndpoint = "http://localhost:8080/api/users/reset";
+    const resetPasswordEndpoint = "http://localhost:5521/api/users/reset";
 
     try {
       const response = await fetch(resetPasswordEndpoint, {
