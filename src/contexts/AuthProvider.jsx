@@ -20,8 +20,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on app load
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+    const token = localStorage.getItem('authToken');
+    const userData = localStorage.getItem('userData');
     
     if (token && userData) {
       try {
@@ -29,37 +29,37 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error('Error parsing user data:', error);
         // Clear invalid data
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
       }
     }
     setLoading(false);
   }, []);
 
   const login = (userData, token) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('userData', JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
     setUser(null);
   };
 
   // Add token getter for API requests
   const getToken = () => {
-    return localStorage.getItem('token');
+    return localStorage.getItem('authToken');
   };
 
   const value = {
     user,
-    isAuthenticated, // Add this line
+    isAuthenticated,
     login,
     logout,
     loading,
-    getToken // Optional: useful for API calls
+    getToken
   };
 
   return (

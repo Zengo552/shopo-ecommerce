@@ -10,7 +10,7 @@ import 'react-range-slider-input/dist/style.css';
 import { registerSW } from "virtual:pwa-register";
 import { AuthProvider } from "./contexts/AuthProvider";
 import { CartProvider } from "./contexts/CartProvider";
-// Remove FavoriteProvider import for now since it's causing issues
+import { FavoriteProvider } from "./contexts/FavoriteProvider"; // Add this import
 import ToastNotifications from "./components/ToastNotifications";
 
 // Error Boundary Component
@@ -82,11 +82,12 @@ if (import.meta.env.MODE === "production") {
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <AuthProvider> {/* AuthProvider should be the outermost provider */}
+      <AuthProvider>
         <CartProvider>
-          {/* Remove FavoriteProvider for now since it's causing issues */}
-          <Routers />
-          <ToastNotifications />
+          <FavoriteProvider> {/* Add FavoriteProvider here */}
+            <Routers />
+            <ToastNotifications />
+          </FavoriteProvider>
         </CartProvider>
       </AuthProvider>
     </ErrorBoundary>

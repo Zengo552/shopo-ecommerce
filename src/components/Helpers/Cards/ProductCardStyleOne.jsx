@@ -1,23 +1,28 @@
 // src/components/Helpers/Cards/ProductCardStyleOne.jsx
-import { Link } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../../contexts/AuthProvider";
+import { useCart } from "../../../contexts/CartProvider";
+import { useFavorite } from "../../../contexts/FavoriteProvider";
 import Compair from "../icons/Compair";
 import QuickViewIco from "../icons/QuickViewIco";
 import Star from "../icons/Star";
 import ThinLove from "../icons/ThinLove";
 import ThinBag from "../icons/ThinBag";
-import { favoriteAPI, cartAPI } from "../../../services/api";
 
 export default function ProductCardStyleOne({ datas, type = 1 }) {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const { addToCart, getItemQuantity } = useCart();
+  const { toggleFavorite, isFavorite: checkIsFavorite } = useFavorite();
+  
+  const [isFavorited, setIsFavorited] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
-  
-  // Extract product data with better fallbacks and handle different data structures
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+
+  // Extract product data
   const productId = datas.id || datas._id;
   const productName = datas.name || datas.title || "Unnamed Product";
   const productPrice = typeof datas.price === 'number' ? datas.price : parseFloat(datas.price || 0);
@@ -25,91 +30,51 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
   const discountPercentage = datas.discountPercentage || datas.discount_percentage || 0;
   const averageRating = datas.averageRating || datas.rating || 0;
   const reviewCount = datas.reviewCount || datas.review_count || 0;
+  const stock = datas.stock || datas.quantity || 10; // Default to 10 if stock is missing
   
-  // Handle different image property structures
+  // Handle image
   let productImage = `${import.meta.env.VITE_PUBLIC_URL}/assets/images/placeholder-product.png`;
-  if (datas.imageUrl) {
-    productImage = datas.imageUrl;
-  } else if (datas.image) {
-    productImage = datas.image;
-  } else if (datas.images && datas.images.length > 0) {
+  if (datas.imageUrl) productImage = datas.imageUrl;
+  else if (datas.image) productImage = datas.image;
+  else if (datas.images && datas.images.length > 0) {
     productImage = typeof datas.images[0] === 'string' ? datas.images[0] : datas.images[0].src;
-  } else if (datas.thumbnail) {
-    productImage = datas.thumbnail;
-  }
-  
-  const categoryName = datas.categoryName || datas.category?.name || datas.category;
-
-  // Memoize these functions to prevent unnecessary re-renders
-  const checkFavoriteStatus = useCallback(async () => {
-    try {
-      const response = await favoriteAPI.getUserFavorites();
-      if (response.success) {
-        const favorites = response.favorites || [];
-        setIsFavorite(favorites.some(fav => fav.productId === productId));
-      }
-    } catch (error) {
-      console.error("Error checking favorite status:", error);
-    }
-  }, [productId]);
-
-  const checkCartStatus = useCallback(async () => {
-    try {
-      const response = await cartAPI.getCart();
-      if (response.success) {
-        const cartItems = response.cart?.cartItems || [];
-        setIsInCart(cartItems.some(item => item.productId === productId));
-      }
-    } catch (error) {
-      console.error("Error checking cart status:", error);
-    }
-  }, [productId]);
+  } else if (datas.thumbnail) productImage = datas.thumbnail;
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      checkFavoriteStatus();
-      checkCartStatus();
-    } else if (!authLoading && !isAuthenticated) {
-      // Reset states when user logs out
-      setIsFavorite(false);
+    if (isAuthenticated && user) {
+      setIsFavorited(checkIsFavorite(productId));
+      setIsInCart(getItemQuantity(productId) > 0);
+    } else {
+      setIsFavorited(false);
       setIsInCart(false);
     }
-  }, [productId, isAuthenticated, authLoading, checkFavoriteStatus, checkCartStatus]);
+  }, [isAuthenticated, user, productId, checkIsFavorite, getItemQuantity]);
 
   const redirectToLogin = () => {
     sessionStorage.setItem('returnUrl', window.location.pathname);
-    window.location.href = '/login';
+    navigate('/login');
   };
 
   const handleAddToFavorites = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (authLoading) {
-      return;
-    }
-    
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       if (confirm("Please login to add to favorites. Would you like to login now?")) {
         redirectToLogin();
       }
       return;
     }
 
-    setIsAddingToWishlist(true);
+    setIsTogglingFavorite(true);
     try {
-      if (isFavorite) {
-        await favoriteAPI.removeFromFavorites(productId);
-        setIsFavorite(false);
-      } else {
-        await favoriteAPI.addToFavorites(productId);
-        setIsFavorite(true);
-      }
+      await toggleFavorite(productId);
+      setIsFavorited(!isFavorited);
     } catch (error) {
       console.error("Error updating favorites:", error);
       alert("Failed to update favorites. Please try again.");
     } finally {
-      setIsAddingToWishlist(false);
+      setIsTogglingFavorite(false);
     }
   };
 
@@ -117,32 +82,25 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
     e.preventDefault();
     e.stopPropagation();
     
-    if (authLoading) {
-      return;
-    }
-    
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       if (confirm("Please login to add to cart. Would you like to login now?")) {
         redirectToLogin();
       }
       return;
     }
 
+    if (stock === 0) {
+      alert("This product is out of stock");
+      return;
+    }
+
     setIsAddingToCart(true);
     try {
-      const cartItem = {
-        productId: productId,
-        quantity: 1
-      };
-      
-      await cartAPI.addOrUpdateItem(cartItem);
+      await addToCart(productId, 1);
       setIsInCart(true);
-      
-      // Optional: Show success message or trigger cart update in parent component
-      console.log("Product added to cart successfully:", productId);
     } catch (error) {
       console.error("Error adding to cart:", error);
-      alert("Failed to add to cart. Please try again.");
+      alert(error.message || "Failed to add to cart. Please try again.");
     } finally {
       setIsAddingToCart(false);
     }
@@ -162,22 +120,13 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
 
   const discountedPrice = calculateDiscountPrice();
 
-  // Helper variables for cleaner JSX
-  const showAuthLoading = authLoading;
-  const showUnauthenticated = !authLoading && !isAuthenticated;
-  const showAuthenticated = !authLoading && isAuthenticated;
-
-  // Handle image error more gracefully
   const handleImageError = (e) => {
     e.target.src = `${import.meta.env.VITE_PUBLIC_URL}/assets/images/placeholder-product.png`;
     setImageLoaded(true);
   };
 
   return (
-    <div
-      className="product-card-one w-full h-full bg-white relative group overflow-hidden rounded-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
-      style={{ boxShadow: "0px 15px 64px 0px rgba(0, 0, 0, 0.05)" }}
-    >
+    <div className="product-card-one w-full h-full bg-white relative group overflow-hidden rounded-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
       {/* Product Image Container */}
       <div className="product-card-img w-full h-[300px] bg-gray-100 relative overflow-hidden">
         {discountPercentage > 0 && (
@@ -186,9 +135,9 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
           </div>
         )}
         
-        {!imageLoaded && (
-          <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
-            <div className="w-10 h-10 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+        {stock === 0 && (
+          <div className="absolute top-3 right-3 z-10 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded">
+            Out of Stock
           </div>
         )}
         
@@ -205,25 +154,19 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
           <button
             onClick={handleAddToCart}
-            disabled={isAddingToCart || showAuthLoading}
+            disabled={isAddingToCart || stock === 0 || !isAuthenticated || !user}
             className={`px-4 py-2 rounded-full text-sm font-semibold transition-all transform translate-y-4 group-hover:translate-y-0 ${
               type === 3 
                 ? "bg-blue-600 hover:bg-blue-700 text-white" 
                 : "bg-yellow-500 hover:bg-yellow-600 text-black"
-            } ${(isAddingToCart || showAuthLoading) ? "opacity-50 cursor-not-allowed" : ""}`}
+            } ${(isAddingToCart || stock === 0 || !isAuthenticated || !user) ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {showAuthLoading ? (
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Loading...</span>
-              </div>
-            ) : showUnauthenticated ? (
+            {!isAuthenticated || !user ? (
               "Login to Add"
             ) : isAddingToCart ? (
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Adding...</span>
-              </div>
+              "Adding..."
+            ) : stock === 0 ? (
+              "Out of Stock"
             ) : isInCart ? (
               "In Cart ✓"
             ) : (
@@ -257,7 +200,7 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
               ))}
             </div>
             <span className="text-xs text-gray-500">
-              ({reviewCount} review{reviewCount !== 1 ? 's' : ''})
+              ({reviewCount})
             </span>
           </div>
         )}
@@ -274,10 +217,10 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
           )}
         </div>
 
-        {/* Category */}
-        {categoryName && (
-          <p className="text-xs text-gray-500 mt-1">
-            {categoryName}
+        {/* Stock */}
+        {stock > 0 && stock < 10 && (
+          <p className="text-xs text-orange-500 mt-1">
+            Only {stock} left in stock!
           </p>
         )}
       </div>
@@ -294,23 +237,17 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
         {/* Favorite */}
         <button 
           onClick={handleAddToFavorites}
-          disabled={isAddingToWishlist || showAuthLoading}
+          disabled={isTogglingFavorite || !isAuthenticated || !user}
           className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-red-50 transition-colors group/favorite disabled:opacity-50"
-          title={showAuthLoading ? "Loading..." : showUnauthenticated ? "Login to add to favorites" : isFavorite ? "Remove from favorites" : "Add to favorites"}
+          title={!isAuthenticated || !user ? "Login to add favorites" : isFavorited ? "Remove from favorites" : "Add to favorites"}
         >
-          {showAuthLoading ? (
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
-          ) : isAddingToWishlist ? (
+          {isTogglingFavorite ? (
             <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-          ) : showUnauthenticated ? (
-            <ThinLove 
-              className="w-4 h-4 text-gray-400"
-            />
           ) : (
             <ThinLove 
-              filled={isFavorite}
+              filled={isFavorited}
               className="w-4 h-4 transition-colors"
-              color={isFavorite ? "text-red-600" : "text-gray-600 group-hover/favorite:text-red-500"}
+              color={isFavorited ? "text-red-600" : "text-gray-600 group-hover/favorite:text-red-500"}
             />
           )}
         </button>
@@ -324,37 +261,26 @@ export default function ProductCardStyleOne({ datas, type = 1 }) {
           <Compair className="w-4 h-4 text-gray-600 group-hover/compare:text-green-600" />
         </button>
 
-        {/* Add to Cart (Mobile/Alternative) */}
+        {/* Add to Cart (Mobile) */}
         <button 
           onClick={handleAddToCart}
-          disabled={isAddingToCart || showAuthLoading}
+          disabled={isAddingToCart || stock === 0 || !isAuthenticated || !user}
           className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-green-50 transition-colors group/cart disabled:opacity-50 lg:hidden"
-          title={showAuthLoading ? "Loading..." : showUnauthenticated ? "Login to add to cart" : isInCart ? "Item in cart" : "Add to cart"}
+          title={!isAuthenticated || !user ? "Login to add to cart" : stock === 0 ? "Out of stock" : isInCart ? "Item in cart" : "Add to cart"}
         >
-          {showAuthLoading ? (
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
-          ) : isAddingToCart ? (
+          {isAddingToCart ? (
             <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-          ) : showUnauthenticated ? (
-            <ThinBag 
-              className="w-4 h-4 text-gray-400"
-            />
           ) : (
             <ThinBag 
               className="w-4 h-4 transition-colors"
-              color={isInCart ? "text-green-600" : "text-gray-600 group-hover/cart:text-green-500"}
+              color={isInCart ? "text-green-600" : stock === 0 ? "text-gray-400" : "text-gray-600 group-hover/cart:text-green-500"}
             />
           )}
         </button>
       </div>
 
       {/* Authentication Status Indicator */}
-      {showAuthLoading && (
-        <div className="absolute top-3 right-3 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-          Loading...
-        </div>
-      )}
-      {showUnauthenticated && (
+      {(!isAuthenticated || !user) && (
         <div className="absolute top-3 right-3 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">
           Login Required
         </div>

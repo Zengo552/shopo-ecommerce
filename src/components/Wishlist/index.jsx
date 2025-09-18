@@ -1,3 +1,4 @@
+// src/pages/wishlist/index.jsx
 import { useState, useEffect } from "react";
 import axios from 'axios';
 import BreadcrumbCom from "../BreadcrumbCom";
@@ -6,10 +7,9 @@ import PageTitle from "../Helpers/PageTitle";
 import Layout from "../Partials/Layout";
 import ProductsTable from "./ProductsTable";
 
-// Create axios instance with base configuration
 const api = axios.create({
   baseURL: 'http://localhost:5521',
-  timeout: 10000, // 10 second timeout
+  timeout: 10000,
 });
 
 export default function Wishlist({ wishlist = true }) {
@@ -17,7 +17,6 @@ export default function Wishlist({ wishlist = true }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Function to fetch user's favorites from Spring Boot
   const fetchFavorites = async () => {
     setLoading(true);
     setError(null);
@@ -38,67 +37,55 @@ export default function Wishlist({ wishlist = true }) {
         }
       });
 
-      console.log("Backend response:", response.data);
+      console.log("Full backend response:", response.data);
 
       if (response.data.success) {
-        // Map the backend response to match frontend expectations
-        const mappedProducts = (response.data.favorites || []).map(favorite => ({
-          id: favorite.productId,        // Map productId to id
-          name: favorite.productName,    // Map productName to name
-          price: favorite.price,
-          imageUrl: favorite.imageUrl,
-          // Add default values for missing fields
-          description: favorite.description || "", // Use description if available
-          color: favorite.color || null,           // Use color if available
-          size: favorite.size || "Standard"        // Use size if available
-        }));
-        console.log("Mapped products:", mappedProducts);
+        // Map the backend response with proper image handling
+        const mappedProducts = (response.data.favorites || []).map((favorite) => {
+          // Debug: log what image fields we're getting from backend
+          console.log("Favorite item image fields:", {
+            id: favorite.productId,
+            imageUrl: favorite.imageUrl,
+            productImage: favorite.productImage,
+            image: favorite.image,
+            thumbnail: favorite.thumbnail
+          });
+          
+          // Try all possible image fields from the backend
+          const productImage = favorite.imageUrl || favorite.productImage || 
+                              favorite.image || favorite.thumbnail;
+          
+          return {
+            id: favorite.productId,
+            name: favorite.productName,
+            price: favorite.price,
+            productImage: productImage,
+            description: favorite.description || "",
+            color: favorite.color || null,
+            size: favorite.size || "Standard"
+          };
+        });
+        
+        console.log("Mapped products with images:", mappedProducts);
         setFavoriteProducts(mappedProducts);
       } else {
-        const errorMsg = response.data.message || "Failed to load wishlist";
-        console.error("Backend returned error:", errorMsg);
-        setError(errorMsg);
+        setError(response.data.message || "Failed to load wishlist");
       }
     } catch (err) {
       console.error("Failed to fetch favorites:", err);
-      
-      // Enhanced error logging
-      if (err.response) {
-        console.error("Response data:", err.response.data);
-        console.error("Response status:", err.response.status);
-        console.error("Response headers:", err.response.headers);
-        
-        switch (err.response.status) {
-          case 401:
-            setError("Your session has expired. Please log in again.");
-            localStorage.removeItem('authToken');
-            window.dispatchEvent(new Event('authChange'));
-            break;
-          case 500:
-            setError("Server error. Please check the backend logs for details.");
-            break;
-          case 404:
-            setError("Wishlist service not found. Please check if the backend is running.");
-            break;
-          case 403:
-            setError("Access forbidden. You don't have permission to view favorites.");
-            break;
-          default:
-            setError(`Failed to load your wishlist (Status: ${err.response.status}). Please try again later.`);
-        }
-      } else if (err.request) {
-        console.error("No response received:", err.request);
-        setError("Network error. Please check if the backend server is running on port 5521.");
+      if (err.response?.status === 401) {
+        setError("Your session has expired. Please log in again.");
+        localStorage.removeItem('authToken');
+        window.dispatchEvent(new Event('authChange'));
       } else {
-        console.error("Request setup error:", err.message);
-        setError("An unexpected error occurred while setting up the request.");
+        setError("Failed to load wishlist. Please try again.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Function to remove a product from favorites
+  // ... rest of the component remains the same as before
   const removeFromFavorites = async (productId) => {
     try {
       const token = localStorage.getItem('authToken');
@@ -115,7 +102,6 @@ export default function Wishlist({ wishlist = true }) {
       });
 
       if (response.data.success) {
-        // Remove the product from local state to update UI immediately
         setFavoriteProducts(prevProducts => 
           prevProducts.filter(product => product.id !== productId)
         );
@@ -134,7 +120,6 @@ export default function Wishlist({ wishlist = true }) {
     }
   };
 
-  // Function to clear the entire wishlist
   const clearWishlist = async () => {
     if (!window.confirm("Are you sure you want to clear your entire wishlist?")) {
       return;
@@ -148,7 +133,6 @@ export default function Wishlist({ wishlist = true }) {
         return;
       }
 
-      // Remove items one by one
       const deletePromises = favoriteProducts.map(product => 
         api.delete(`/favorites/${product.id}`, {
           headers: {
@@ -166,7 +150,6 @@ export default function Wishlist({ wishlist = true }) {
     }
   };
 
-  // Function to add all wishlist items to cart
   const addAllToCart = async () => {
     try {
       const token = localStorage.getItem('authToken');
@@ -181,7 +164,6 @@ export default function Wishlist({ wishlist = true }) {
         return;
       }
 
-      // Add each product to cart
       const addToCartPromises = favoriteProducts.map(product => 
         api.post('/api/cart/items', {
           productId: product.id,
@@ -216,19 +198,16 @@ export default function Wishlist({ wishlist = true }) {
     }
   };
 
-  // Fetch data when component mounts
   useEffect(() => {
     if (wishlist) {
       fetchFavorites();
     }
   }, [wishlist]);
 
-  // Retry function for users to try again
   const handleRetry = () => {
     fetchFavorites();
   };
 
-  // Show loading state
   if (loading && wishlist) {
     return (
       <Layout>
@@ -249,7 +228,6 @@ export default function Wishlist({ wishlist = true }) {
     );
   }
 
-  // Show error state
   if (error && wishlist) {
     return (
       <Layout>

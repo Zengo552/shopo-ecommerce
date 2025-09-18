@@ -22,17 +22,74 @@ const apiRequest = async (endpoint, options = {}) => {
       return { success: true, message: 'Operation completed successfully' };
     }
     
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.message || `API request failed with status ${response.status}`);
+    // Handle cases where response might not be JSON
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || `API request failed with status ${response.status}`);
+      }
+      
+      return data;
+    } else {
+      // For non-JSON responses, return success status
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      return { success: true };
     }
-    
-    return data;
   } catch (error) {
     console.error('API request error:', error);
     throw error;
   }
+};
+
+// Cart APIs - Updated to match backend structure
+export const cartAPI = {
+  getCart: () => apiRequest('/api/cart'),
+  
+  addOrUpdateItem: (cartItem) => 
+    apiRequest('/api/cart/items', {
+      method: 'POST',
+      body: JSON.stringify(cartItem),
+    }),
+  
+  updateItemQuantity: (productId, newQuantity) => 
+    apiRequest(`/api/cart/items/${productId}?quantity=${newQuantity}`, {
+      method: 'PUT',
+    }),
+  
+  removeItem: (productId) => 
+    apiRequest(`/api/cart/items/${productId}`, { method: 'DELETE' }),
+  
+  clearCart: () => 
+    apiRequest('/api/cart/clear', { method: 'DELETE' }),
+};
+
+// Favorite APIs - Updated to match backend structure
+export const favoriteAPI = {
+  getUserFavorites: (pagination = {}) => {
+    const params = new URLSearchParams();
+    
+    // Add pagination parameters
+    Object.entries(pagination).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    
+    return apiRequest(`/favorites?${params.toString()}`);
+  },
+  
+  addToFavorites: (productId) => 
+    apiRequest(`/favorites/${productId}`, { method: 'POST' }),
+  
+  removeFromFavorites: (productId) => 
+    apiRequest(`/favorites/${productId}`, { method: 'DELETE' }),
+
+  checkFavorite: (productId) => 
+    apiRequest(`/favorites/check/${productId}`),
 };
 
 // Product APIs with pagination support
@@ -104,31 +161,6 @@ export const productAPI = {
   },
 };
 
-// Favorite APIs - Updated to match backend structure
-export const favoriteAPI = {
-  getUserFavorites: (pagination = {}) => {
-    const params = new URLSearchParams();
-    
-    // Add pagination parameters
-    Object.entries(pagination).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        params.append(key, value);
-      }
-    });
-    
-    return apiRequest(`/favorites?${params.toString()}`);
-  },
-  
-  addToFavorites: (productId) => 
-    apiRequest(`/favorites/${productId}`, { method: 'POST' }),
-  
-  removeFromFavorites: (productId) => 
-    apiRequest(`/favorites/${productId}`, { method: 'DELETE' }),
-
-  // Debug endpoint
-  debug: () => apiRequest('/favorites/debug'),
-};
-
 // Review APIs - Updated to match backend structure
 export const reviewAPI = {
   getByProduct: (productId, pagination = {}) => {
@@ -152,28 +184,6 @@ export const reviewAPI = {
   
   deleteReview: (id) => 
     apiRequest(`/reviews/${id}`, { method: 'DELETE' }),
-};
-
-// Cart APIs - Updated to match CartController
-export const cartAPI = {
-  getCart: () => apiRequest('/api/cart'),
-  
-  addOrUpdateItem: (cartItem) => 
-    apiRequest('/api/cart/items', {
-      method: 'POST',
-      body: JSON.stringify(cartItem),
-    }),
-  
-  updateItemQuantity: (productId, newQuantity) => 
-    apiRequest(`/api/cart/items/${productId}?quantity=${newQuantity}`, {
-      method: 'PUT',
-    }),
-  
-  removeItem: (productId) => 
-    apiRequest(`/api/cart/items/${productId}`, { method: 'DELETE' }),
-  
-  clearCart: () => 
-    apiRequest('/api/cart/clear', { method: 'DELETE' }),
 };
 
 // Order APIs

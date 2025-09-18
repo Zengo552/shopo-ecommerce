@@ -14,14 +14,15 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [itemCount, setItemCount] = useState(0);
   const [cartTotal, setCartTotal] = useState(0);
+  const [error, setError] = useState(null);
 
   const fetchCart = async () => {
-    if (!user) {
+    if (!isAuthenticated || !user) {
       setCart(null);
       setItemCount(0);
       setCartTotal(0);
@@ -31,12 +32,14 @@ export const CartProvider = ({ children }) => {
 
     try {
       setLoading(true);
+      setError(null);
       const response = await cartAPI.getCart();
-      if (response.success) {
+      
+      if (response.success && response.cart) {
         setCart(response.cart);
-        const count = response.cart?.cartItems?.reduce((total, item) => total + item.quantity, 0) || 0;
+        const count = response.cart.cartItems?.reduce((total, item) => total + item.quantity, 0) || 0;
         setItemCount(count);
-        setCartTotal(response.cart?.totalAmount || 0);
+        setCartTotal(response.cart.totalAmount || 0);
       } else {
         // If cart doesn't exist, create an empty cart structure
         setCart({
@@ -50,10 +53,11 @@ export const CartProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching cart:', error);
+      setError(error.message);
       // Create empty cart on error
       setCart({
         id: null,
-        userId: user.id,
+        userId: user?.id,
         cartItems: [],
         totalAmount: 0
       });
@@ -65,8 +69,16 @@ export const CartProvider = ({ children }) => {
   };
 
   const addToCart = async (productId, quantity = 1) => {
+    if (!isAuthenticated) {
+      throw new Error('Please login to add items to cart');
+    }
+
     try {
-      const response = await cartAPI.addOrUpdateItem({ productId, quantity });
+      const response = await cartAPI.addOrUpdateItem({ 
+        productId: parseInt(productId), 
+        quantity: parseInt(quantity)
+      });
+      
       if (response.success) {
         await fetchCart(); // Refresh cart data
         return response;
@@ -74,6 +86,7 @@ export const CartProvider = ({ children }) => {
       throw new Error(response.message || 'Failed to add to cart');
     } catch (error) {
       console.error('Error adding to cart:', error);
+      setError(error.message);
       throw error;
     }
   };
@@ -88,6 +101,7 @@ export const CartProvider = ({ children }) => {
       throw new Error(response.message || 'Failed to update quantity');
     } catch (error) {
       console.error('Error updating quantity:', error);
+      setError(error.message);
       throw error;
     }
   };
@@ -102,6 +116,7 @@ export const CartProvider = ({ children }) => {
       throw new Error(response.message || 'Failed to remove from cart');
     } catch (error) {
       console.error('Error removing from cart:', error);
+      setError(error.message);
       throw error;
     }
   };
@@ -123,16 +138,13 @@ export const CartProvider = ({ children }) => {
       throw new Error(response.message || 'Failed to clear cart');
     } catch (error) {
       console.error('Error clearing cart:', error);
+      setError(error.message);
       throw error;
     }
   };
 
-  const updateCartCount = (increment = 1) => {
-    setItemCount(prev => Math.max(0, prev + increment));
-  };
-
   const getCartItem = (productId) => {
-    return cart?.cartItems?.find(item => item.productId === productId);
+    return cart?.cartItems?.find(item => item.productId === parseInt(productId));
   };
 
   const getItemQuantity = (productId) => {
@@ -143,7 +155,7 @@ export const CartProvider = ({ children }) => {
   // Refresh cart when user changes
   useEffect(() => {
     fetchCart();
-  }, [user]);
+  }, [user, isAuthenticated]);
 
   const value = {
     // State
@@ -151,6 +163,7 @@ export const CartProvider = ({ children }) => {
     loading,
     itemCount,
     cartTotal,
+    error,
     
     // Actions
     fetchCart,
@@ -158,7 +171,6 @@ export const CartProvider = ({ children }) => {
     updateItemQuantity,
     removeFromCart,
     clearCart,
-    updateCartCount,
     getCartItem,
     getItemQuantity,
     
