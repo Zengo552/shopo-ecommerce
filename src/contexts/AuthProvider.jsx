@@ -15,13 +15,23 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Add isAuthenticated computed property
+  const isAuthenticated = !!user;
+
   useEffect(() => {
     // Check if user is logged in on app load
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
     
     if (token && userData) {
-      setUser(JSON.parse(userData));
+      try {
+        setUser(JSON.parse(userData));
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        // Clear invalid data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
@@ -38,11 +48,18 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Add token getter for API requests
+  const getToken = () => {
+    return localStorage.getItem('token');
+  };
+
   const value = {
     user,
+    isAuthenticated, // Add this line
     login,
     logout,
-    loading
+    loading,
+    getToken // Optional: useful for API calls
   };
 
   return (

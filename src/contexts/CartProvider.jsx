@@ -1,5 +1,6 @@
+// src/contexts/CartProvider.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthProvider';
 import { cartAPI } from '../services/api';
 
 const CartContext = createContext();
@@ -33,7 +34,7 @@ export const CartProvider = ({ children }) => {
       const response = await cartAPI.getCart();
       if (response.success) {
         setCart(response.cart);
-        const count = response.cart?.cartItems?.length || 0;
+        const count = response.cart?.cartItems?.reduce((total, item) => total + item.quantity, 0) || 0;
         setItemCount(count);
         setCartTotal(response.cart?.totalAmount || 0);
       } else {
@@ -109,7 +110,12 @@ export const CartProvider = ({ children }) => {
     try {
       const response = await cartAPI.clearCart();
       if (response.success) {
-        setCart(null);
+        setCart({
+          id: null,
+          userId: user?.id,
+          cartItems: [],
+          totalAmount: 0
+        });
         setItemCount(0);
         setCartTotal(0);
         return response;
@@ -138,14 +144,6 @@ export const CartProvider = ({ children }) => {
   useEffect(() => {
     fetchCart();
   }, [user]);
-
-  // Calculate total items count whenever cart changes
-  useEffect(() => {
-    if (cart && cart.cartItems) {
-      const totalItems = cart.cartItems.reduce((total, item) => total + item.quantity, 0);
-      setItemCount(totalItems);
-    }
-  }, [cart]);
 
   const value = {
     // State

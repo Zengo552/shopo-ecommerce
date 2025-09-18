@@ -30,11 +30,6 @@ import HomeThree from "./components/HomeThree/index.jsx";
 import HomeFour from "./components/HomeFour/index.jsx";
 import HomeFive from "./components/HomeFive/index.jsx";
 
-// Import context providers
-import { AuthProvider } from "./contexts/AuthContext";
-import { CartProvider } from "./contexts/CartContext";
-import { FavoriteProvider } from "./contexts/FavoriteContext";
-
 const router = createBrowserRouter([
   { 
     path: "/", 
@@ -61,7 +56,7 @@ const router = createBrowserRouter([
     element: <AllProductPage /> 
   },
   { 
-    path: "/single-product/:id",  // Fixed: Added parameter for product ID
+    path: "/single-product/:id", 
     element: <SingleProductPage /> 
   },
   { 
@@ -81,7 +76,7 @@ const router = createBrowserRouter([
     element: <FlashSale /> 
   },
   { 
-    path: "/saller-page/:id?",  // Optional parameter for seller ID
+    path: "/saller-page/:id?", 
     element: <SallerPage /> 
   },
   { 
@@ -101,7 +96,7 @@ const router = createBrowserRouter([
     element: <Blogs /> 
   },
   { 
-    path: "/blogs/:id",  // Added parameter for blog ID
+    path: "/blogs/:id", 
     element: <Blog /> 
   },
   { 
@@ -133,7 +128,7 @@ const router = createBrowserRouter([
     element: <ForgotPassword /> 
   },
   { 
-    path: "/reset-password/:token?",  // Optional token parameter
+    path: "/reset-password/:token?", 
     element: <ResetPassword /> 
   },
   { 
@@ -153,11 +148,11 @@ const router = createBrowserRouter([
     element: <TermsCondition /> 
   },
   { 
-    path: "/category/:categoryId",  // Added category route
+    path: "/category/:categoryId", 
     element: <AllProductPage /> 
   },
   { 
-    path: "/search",  // Added search route
+    path: "/search", 
     element: <AllProductPage /> 
   },
   { 
@@ -167,15 +162,7 @@ const router = createBrowserRouter([
 ]);
 
 function Routers() {
-  return (
-    <AuthProvider>
-      <CartProvider>
-        <FavoriteProvider>
-          <RouterProvider router={router} />
-        </FavoriteProvider>
-      </CartProvider>
-    </AuthProvider>
-  );
+  return <RouterProvider router={router} />;
 }
 
 export default Routers;

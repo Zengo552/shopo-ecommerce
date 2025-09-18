@@ -10,7 +10,7 @@ import Layout from "../Partials/Layout";
 import ProductView from "./ProductView";
 import Reviews from "./Reviews";
 import SallerInfo from "./SallerInfo";
-import { productAPI, reviewAPI } from "../../services/api";
+import { productAPI, reviewAPI, handleApiResponse } from "../../services/api";
 
 export default function SingleProductPage() {
   const { id } = useParams();
@@ -40,34 +40,49 @@ export default function SingleProductPage() {
       setLoadingState(true);
       setError(null);
       
-      const [productResponse, reviewsResponse] = await Promise.all([
-        productAPI.getById(id),
-        reviewAPI.getByProduct(id)
-      ]);
-
+      // Fetch product data
+      const productResponse = await productAPI.getById(id);
+      
       if (productResponse.success) {
-        setProduct(productResponse.product);
+        // The product data structure might vary - adjust based on your actual API response
+        const productData = productResponse.product || productResponse.data || productResponse;
+        setProduct(productData);
         
-        // Fetch related products by category
-        if (productResponse.product.categoryId) {
-          const relatedResponse = await productAPI.getByCategory(
-            productResponse.product.categoryId,
-            { limit: 4 }
-          );
-          if (relatedResponse.success) {
-            setRelatedProducts(
-              relatedResponse.products
-                .filter(p => p.id !== parseInt(id))
-                .slice(0, 4)
+        // Fetch reviews for this product
+        try {
+          const reviewsResponse = await reviewAPI.getByProduct(id);
+          if (reviewsResponse.success) {
+            setReviews(reviewsResponse.reviews || reviewsResponse.data || []);
+          }
+        } catch (reviewError) {
+          console.warn("Could not fetch reviews:", reviewError);
+          setReviews([]);
+        }
+        
+        // Fetch related products by category if available
+        if (productData.categoryId || productData.category?.id) {
+          const categoryId = productData.categoryId || productData.category?.id;
+          try {
+            const relatedResponse = await productAPI.getByCategory(
+              categoryId,
+              { limit: 4, page: 0 }
             );
+            
+            if (relatedResponse.success) {
+              const relatedProductsData = relatedResponse.products || relatedResponse.data || [];
+              setRelatedProducts(
+                relatedProductsData
+                  .filter(p => p.id !== parseInt(id))
+                  .slice(0, 4)
+              );
+            }
+          } catch (relatedError) {
+            console.warn("Could not fetch related products:", relatedError);
+            setRelatedProducts([]);
           }
         }
       } else {
         setError(productResponse.message || "Product not found");
-      }
-
-      if (reviewsResponse.success) {
-        setReviews(reviewsResponse.reviews || []);
       }
     } catch (err) {
       console.error("Error fetching product data:", err);
@@ -108,9 +123,13 @@ export default function SingleProductPage() {
       
       if (response.success) {
         // Refresh reviews
-        const reviewsResponse = await reviewAPI.getByProduct(id);
-        if (reviewsResponse.success) {
-          setReviews(reviewsResponse.reviews);
+        try {
+          const reviewsResponse = await reviewAPI.getByProduct(id);
+          if (reviewsResponse.success) {
+            setReviews(reviewsResponse.reviews || reviewsResponse.data || []);
+          }
+        } catch (refreshError) {
+          console.warn("Could not refresh reviews:", refreshError);
         }
         
         // Reset form
@@ -376,7 +395,7 @@ export default function SingleProductPage() {
         )}
       </div>
 
-      {/* Report Modal (simplified version) */}
+      {/* Report Modal */}
       {report && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-96">

@@ -2,12 +2,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom"; // Added hooks
 import BreadcrumbCom from "../BreadcrumbCom";
+import { useAuth } from "../../contexts/AuthProvider";
 import ProductCardStyleOne from "../Helpers/Cards/ProductCardStyleOne";
 import Layout from "../Partials/Layout";
 import ProductsFilter from "./ProductsFilter";
 import { productAPI } from "../../services/api";
 
 export default function AllProductPage() {
+  const { user, isAuthenticated } = useAuth();
   const { categoryId } = useParams(); // Get category ID from URL
   const [searchParams] = useSearchParams(); // Get search params from URL
   

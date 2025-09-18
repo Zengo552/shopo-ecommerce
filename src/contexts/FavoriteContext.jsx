@@ -1,5 +1,6 @@
+// src/contexts/FavoriteContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthProvider'; // Make sure this import is correct
 import { favoriteAPI } from '../services/api';
 
 const FavoriteContext = createContext();
@@ -13,7 +14,7 @@ export const useFavorite = () => {
 };
 
 export const FavoriteProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user } = useAuth(); // This will work now since AuthProvider wraps this
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +32,7 @@ export const FavoriteProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching favorites:', error);
+      setFavorites([]);
     } finally {
       setLoading(false);
     }
@@ -38,8 +40,12 @@ export const FavoriteProvider = ({ children }) => {
 
   const addToFavorites = async (productId) => {
     try {
-      await favoriteAPI.addToFavorites(productId);
-      await fetchFavorites(); // Refresh favorites
+      const response = await favoriteAPI.addToFavorites(productId);
+      if (response.success) {
+        await fetchFavorites(); // Refresh favorites
+        return response;
+      }
+      throw new Error(response.message || 'Failed to add to favorites');
     } catch (error) {
       console.error('Error adding to favorites:', error);
       throw error;
@@ -48,8 +54,12 @@ export const FavoriteProvider = ({ children }) => {
 
   const removeFromFavorites = async (productId) => {
     try {
-      await favoriteAPI.removeFromFavorites(productId);
-      await fetchFavorites(); // Refresh favorites
+      const response = await favoriteAPI.removeFromFavorites(productId);
+      if (response.success) {
+        await fetchFavorites(); // Refresh favorites
+        return response;
+      }
+      throw new Error(response.message || 'Failed to remove from favorites');
     } catch (error) {
       console.error('Error removing from favorites:', error);
       throw error;
@@ -70,7 +80,9 @@ export const FavoriteProvider = ({ children }) => {
     fetchFavorites,
     addToFavorites,
     removeFromFavorites,
-    isFavorite
+    isFavorite,
+    hasFavorites: favorites.length > 0,
+    favoritesCount: favorites.length
   };
 
   return <FavoriteContext.Provider value={value}>{children}</FavoriteContext.Provider>;

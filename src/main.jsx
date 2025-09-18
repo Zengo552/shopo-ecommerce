@@ -1,12 +1,17 @@
+// src/main.jsx
 import React from "react";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import Routers from "./Routers";
 import "./index.css";
 import 'react-range-slider-input/dist/style.css';
 import { registerSW } from "virtual:pwa-register";
-import { AuthProvider } from "./contexts/AuthProvider"; // Update with correct path
+import { AuthProvider } from "./contexts/AuthProvider";
+import { CartProvider } from "./contexts/CartProvider";
+// Remove FavoriteProvider import for now since it's causing issues
+import ToastNotifications from "./components/ToastNotifications";
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -77,8 +82,12 @@ if (import.meta.env.MODE === "production") {
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <AuthProvider> {/* Wrap App with AuthProvider */}
-        <App />
+      <AuthProvider> {/* AuthProvider should be the outermost provider */}
+        <CartProvider>
+          {/* Remove FavoriteProvider for now since it's causing issues */}
+          <Routers />
+          <ToastNotifications />
+        </CartProvider>
       </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>
