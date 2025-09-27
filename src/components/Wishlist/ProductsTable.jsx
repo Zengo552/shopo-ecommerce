@@ -1,6 +1,7 @@
 // src/pages/wishlist/ProductsTable.jsx
 import { useState, useEffect } from "react";
 import InputQuantityCom from "../Helpers/InputQuantityCom";
+import { getBestProductImage, getFallbackImage } from "../Helpers/imageUtils";
 
 export default function ProductsTable({ className, products = [], onRemoveItem }) {
   const [quantities, setQuantities] = useState({});
@@ -14,22 +15,6 @@ export default function ProductsTable({ className, products = [], onRemoveItem }
       setQuantities(initialQuantities);
     }
   }, [products]);
-
-  // Enhanced image handling with better fallbacks
-  const getProductImage = (product) => {
-    if (!product) {
-      return `${import.meta.env.VITE_PUBLIC_URL}/assets/images/default-product.jpg`;
-    }
-    
-    // First try the productImage field
-    if (product.productImage) {
-      return product.productImage;
-    }
-    
-    // If no image is provided, use a fallback based on product ID
-    const productId = product.id || 1;
-    return `${import.meta.env.VITE_PUBLIC_URL}/assets/images/product-img-${productId % 5 || 1}.jpg`;
-  };
 
   const updateQuantity = (productId, newQuantity) => {
     setQuantities(prev => ({
@@ -55,6 +40,18 @@ export default function ProductsTable({ className, products = [], onRemoveItem }
     return `$${parseFloat(price).toFixed(2)}`;
   };
 
+  // Enhanced error handling for images
+  const handleImageError = (e, productId) => {
+    console.error(`Failed to load image for product ${productId}:`, e.target.src);
+    e.target.src = getFallbackImage(productId);
+    
+    // If the fallback also fails, use the default product image
+    e.target.onerror = () => {
+      e.target.src = `${import.meta.env.VITE_PUBLIC_URL || ''}/assets/images/default-product.jpg`;
+      e.target.onerror = null; // Prevent infinite loop
+    };
+  };
+
   return (
     <div className={`w-full ${className || ""}`}>
       <div className="relative w-full overflow-x-auto border border-[#EDEDED]">
@@ -72,7 +69,7 @@ export default function ProductsTable({ className, products = [], onRemoveItem }
             
             {products && products.length > 0 ? (
               products.map((product) => {
-                const imageUrl = getProductImage(product);
+                const imageUrl = getBestProductImage(product);
                 console.log(`Product ${product.id} image URL:`, imageUrl);
                 
                 return (
@@ -84,10 +81,7 @@ export default function ProductsTable({ className, products = [], onRemoveItem }
                             src={imageUrl}
                             alt={product.name}
                             className="w-full h-full object-contain"
-                            onError={(e) => {
-                              console.error(`Failed to load image for product ${product.id}:`, imageUrl);
-                              e.target.src = `${import.meta.env.VITE_PUBLIC_URL}/assets/images/default-product.jpg`;
-                            }}
+                            onError={(e) => handleImageError(e, product.id)}
                           />
                         </div>
                         <div className="flex-1 flex flex-col">

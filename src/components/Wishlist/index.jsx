@@ -6,6 +6,7 @@ import EmptyWishlistError from "../EmptyWishlistError";
 import PageTitle from "../Helpers/PageTitle";
 import Layout from "../Partials/Layout";
 import ProductsTable from "./ProductsTable";
+import { getProductImageUrl } from "../Helpers/imageUtils";
 
 const api = axios.create({
   baseURL: 'http://localhost:5521',
@@ -42,19 +43,13 @@ export default function Wishlist({ wishlist = true }) {
       if (response.data.success) {
         // Map the backend response with proper image handling
         const mappedProducts = (response.data.favorites || []).map((favorite) => {
-          // Debug: log what image fields we're getting from backend
-          console.log("Favorite item image fields:", {
-            id: favorite.productId,
-            imageUrl: favorite.imageUrl,
-            productImage: favorite.productImage,
-            image: favorite.image,
-            thumbnail: favorite.thumbnail
-          });
-          
-          // Try all possible image fields from the backend
-          const productImage = favorite.imageUrl || favorite.productImage || 
+          // Get the image filename from any available field
+          const imageFilename = favorite.imageUrl || favorite.productImage || 
                               favorite.image || favorite.thumbnail;
           
+          // Convert to full URL using the same pattern as cart
+          const productImage = imageFilename ? getProductImageUrl(imageFilename) : null;
+
           return {
             id: favorite.productId,
             name: favorite.productName,
@@ -66,7 +61,7 @@ export default function Wishlist({ wishlist = true }) {
           };
         });
         
-        console.log("Mapped products with images:", mappedProducts);
+        console.log("Mapped products with full image URLs:", mappedProducts);
         setFavoriteProducts(mappedProducts);
       } else {
         setError(response.data.message || "Failed to load wishlist");
@@ -85,7 +80,6 @@ export default function Wishlist({ wishlist = true }) {
     }
   };
 
-  // ... rest of the component remains the same as before
   const removeFromFavorites = async (productId) => {
     try {
       const token = localStorage.getItem('authToken');
