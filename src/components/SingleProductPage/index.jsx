@@ -304,20 +304,24 @@ export default function SingleProductPage() {
                       <div>
                         <h4 className="font-semibold mb-3">Product Details</h4>
                         <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">SKU:</span>
-                            <span className="text-gray-900">{product.sku || "N/A"}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Category:</span>
-                            <span className="text-gray-900">{product.category?.name || "N/A"}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Stock:</span>
-                            <span className="text-gray-900">
-                              {product.stock > 0 ? `${product.stock} available` : "Out of stock"}
-                            </span>
-                          </div>
+                          {product.sku && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">SKU:</span>
+                              <span className="text-gray-900">{product.sku}</span>
+                            </div>
+                          )}
+                          {product.category?.name && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Category:</span>
+                              <span className="text-gray-900">{product.category.name}</span>
+                            </div>
+                          )}
+                          {product.stock > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Stock:</span>
+                              <span className="text-gray-900">{product.stock} available</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       

@@ -130,7 +130,7 @@ export default function ProductCardStyleOne({ datas, type = 1, className = "" })
     if (!ensureAuthenticated("Please login to add to cart.")) return;
 
     if (stock === 0) {
-      alert("This product is out of stock");
+      alert("This product is currently unavailable");
       return;
     }
 
@@ -172,7 +172,7 @@ export default function ProductCardStyleOne({ datas, type = 1, className = "" })
   const stockStatus = getStockStatus();
 
   return (
-    <div className={`product-card-one w-full h-full bg-white relative group overflow-hidden rounded-lg border border-gray-100 hover:shadow-xl transition-all duration-300 ${className}`}>
+    <Link to={`/single-product/${productId}`} className={`product-card-one w-full h-full bg-white relative group overflow-hidden rounded-lg border border-gray-100 hover:shadow-xl transition-all duration-300 block ${className}`}>
       {/* Product Image Container */}
       <div className="product-card-img w-full h-[300px] bg-gray-100 relative overflow-hidden">
         {/* Badges Container */}
@@ -190,8 +190,8 @@ export default function ProductCardStyleOne({ datas, type = 1, className = "" })
           )}
         </div>
         
-        {/* Stock Status Badge */}
-        {stockStatus && (
+        {/* Stock Status Badge - Only show for low stock, hide for out of stock */}
+        {stockStatus && stock > 0 && (
           <div className={`absolute top-3 right-3 z-10 text-white text-xs font-bold px-2 py-1 rounded ${stockStatus.class}`}>
             {stockStatus.text}
           </div>
@@ -216,40 +216,48 @@ export default function ProductCardStyleOne({ datas, type = 1, className = "" })
           />
         </div>
 
-        {/* Quick Actions Overlay */}
-        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-          {!isAuthenticated || !user ? (
-            <button
-              onClick={redirectToLogin}
-              className="px-4 py-2 rounded-full text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-            >
-              Login to Shop
-            </button>
-          ) : (
-            <button
-              onClick={handleAddToCart}
-              disabled={isAddingToCart || stock === 0}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all transform translate-y-4 group-hover:translate-y-0 ${
-                type === 3 
-                  ? "bg-blue-600 hover:bg-blue-700 text-white" 
-                  : "bg-yellow-500 hover:bg-yellow-600 text-black"
-              } ${(isAddingToCart || stock === 0) ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}
-            >
-              {isAddingToCart ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Adding...
-                </span>
-              ) : stock === 0 ? (
-                "Out of Stock"
-              ) : isInCart ? (
-                "In Cart ✓"
-              ) : (
-                "Add To Cart"
-              )}
-            </button>
-          )}
-        </div>
+        {/* Quick Actions Overlay - Only show for in-stock products */}
+        {stock > 0 && (
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+            {!isAuthenticated || !user ? (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  redirectToLogin();
+                }}
+                className="px-4 py-2 rounded-full text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+              >
+                Login to Shop
+              </button>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddToCart(e);
+                }}
+                disabled={isAddingToCart}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all transform translate-y-4 group-hover:translate-y-0 ${
+                  type === 3 
+                    ? "bg-blue-600 hover:bg-blue-700 text-white" 
+                    : "bg-yellow-500 hover:bg-yellow-600 text-black"
+                } ${isAddingToCart ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}
+              >
+                {isAddingToCart ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Adding...
+                  </span>
+                ) : isInCart ? (
+                  "In Cart ✓"
+                ) : (
+                  "Add To Cart"
+                )}
+              </button>
+            )}
+          </div>
+        )}
       </div>
       
       {/* Product Details */}
@@ -263,11 +271,9 @@ export default function ProductCardStyleOne({ datas, type = 1, className = "" })
           </div>
         )}
         
-        <Link to={`/single-product/${productId}`}>
-          <p className="title mb-2 text-[15px] font-semibold text-qblack leading-[24px] line-clamp-2 hover:text-blue-600 transition-colors">
-            {productName}
-          </p>
-        </Link>
+        <p className="title mb-2 text-[15px] font-semibold text-qblack leading-[24px] line-clamp-2 hover:text-blue-600 transition-colors">
+          {productName}
+        </p>
         
         {/* Rating */}
         {averageRating > 0 && (
@@ -310,94 +316,113 @@ export default function ProductCardStyleOne({ datas, type = 1, className = "" })
         )}
       </div>
       
-      {/* Quick Access Buttons */}
-      <div className="quick-access-btns flex flex-col space-y-2 absolute group-hover:right-3 -right-10 top-3 transition-all duration-300 ease-in-out">
-        {/* Quick View */}
-        <Link 
-          to={`/single-product/${productId}`} 
-          onClick={(e) => e.stopPropagation()}
-          className="group/quickview"
-          title="Quick View"
-        >
-          <span className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-blue-50 transition-colors">
-            <QuickViewIco className="w-4 h-4 text-gray-600 group-hover/quickview:text-blue-600" />
-          </span>
-        </Link>
-        
-        {/* Favorite */}
-        {!isAuthenticated || !user ? (
-          <button
-            onClick={redirectToLogin}
-            className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-red-50 transition-colors group/favorite"
-            title="Login to add favorites"
-          >
-            <ThinLove 
-              className="w-4 h-4 text-gray-600 group-hover/favorite:text-red-500"
-            />
-          </button>
-        ) : (
-          <button 
-            onClick={handleAddToFavorites}
-            disabled={isTogglingFavorite}
-            className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-red-50 transition-colors group/favorite disabled:opacity-50"
-            title={isFavorited ? "Remove from favorites" : "Add to favorites"}
-          >
-            {isTogglingFavorite ? (
-              <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <ThinLove 
-                filled={isFavorited}
-                className={`w-4 h-4 transition-colors ${
-                  isFavorited ? "text-red-600" : "text-gray-600 group-hover/favorite:text-red-500"
-                }`}
-              />
-            )}
-          </button>
-        )}
-        
-        {/* Compare */}
+{/* Quick Access Buttons */}
+<div className="quick-access-btns flex flex-col space-y-2 absolute group-hover:right-3 -right-10 top-3 transition-all duration-300 ease-in-out">
+  {/* Quick View - FIXED: Use button instead of Link */}
+  <button 
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      navigate(`/single-product/${productId}`);
+    }}
+    className="group/quickview w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-blue-50 transition-colors"
+    title="Quick View"
+  >
+    <QuickViewIco className="w-4 h-4 text-gray-600 group-hover/quickview:text-blue-600" />
+  </button>
+  
+  {/* Favorite button - already correct */}
+  {!isAuthenticated || !user ? (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        redirectToLogin();
+      }}
+      className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-red-50 transition-colors group/favorite"
+      title="Login to add favorites"
+    >
+      <ThinLove 
+        className="w-4 h-4 text-gray-600 group-hover/favorite:text-red-500"
+      />
+    </button>
+  ) : (
+    <button 
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleAddToFavorites(e);
+      }}
+      disabled={isTogglingFavorite}
+      className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-red-50 transition-colors group/favorite disabled:opacity-50"
+      title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+    >
+      {isTogglingFavorite ? (
+        <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+      ) : (
+        <ThinLove 
+          filled={isFavorited}
+          className={`w-4 h-4 transition-colors ${
+            isFavorited ? "text-red-600" : "text-gray-600 group-hover/favorite:text-red-500"
+          }`}
+        />
+      )}
+    </button>
+  )}
+  
+  {/* Compare button - already correct */}
+  <button 
+    className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-green-50 transition-colors group/compare"
+    title="Compare product"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Add compare functionality here
+    }}
+  >
+    <Compair className="w-4 h-4 text-gray-600 group-hover/compare:text-green-600" />
+  </button>
+
+  {/* Add to Cart (Mobile) - already correct */}
+  {stock > 0 && (
+    <>
+      {!isAuthenticated || !user ? (
         <button 
-          className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-green-50 transition-colors group/compare"
-          title="Compare product"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // Add compare functionality here
+            redirectToLogin();
           }}
+          className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-green-50 transition-colors group/cart lg:hidden"
+          title="Login to add to cart"
         >
-          <Compair className="w-4 h-4 text-gray-600 group-hover/compare:text-green-600" />
+          <ThinBag className="w-4 h-4 text-gray-600 group-hover/cart:text-green-500" />
         </button>
-
-        {/* Add to Cart (Mobile) */}
-        {!isAuthenticated || !user ? (
-          <button 
-            onClick={redirectToLogin}
-            className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-green-50 transition-colors group/cart lg:hidden"
-            title="Login to add to cart"
-          >
-            <ThinBag className="w-4 h-4 text-gray-600 group-hover/cart:text-green-500" />
-          </button>
-        ) : (
-          <button 
-            onClick={handleAddToCart}
-            disabled={isAddingToCart || stock === 0}
-            className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-green-50 transition-colors group/cart disabled:opacity-50 lg:hidden"
-            title={stock === 0 ? "Out of stock" : isInCart ? "Item in cart" : "Add to cart"}
-          >
-            {isAddingToCart ? (
-              <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <ThinBag 
-                className={`w-4 h-4 transition-colors ${
-                  isInCart ? "text-green-600" : 
-                  stock === 0 ? "text-gray-400" : 
-                  "text-gray-600 group-hover/cart:text-green-500"
-                }`}
-              />
-            )}
-          </button>
-        )}
-      </div>
+      ) : (
+        <button 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleAddToCart(e);
+          }}
+          disabled={isAddingToCart}
+          className="w-10 h-10 flex justify-center items-center bg-white rounded-full shadow-md hover:bg-green-50 transition-colors group/cart disabled:opacity-50 lg:hidden"
+          title={isInCart ? "Item in cart" : "Add to cart"}
+        >
+          {isAddingToCart ? (
+            <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <ThinBag 
+              className={`w-4 h-4 transition-colors ${
+                isInCart ? "text-green-600" : "text-gray-600 group-hover/cart:text-green-500"
+              }`}
+            />
+          )}
+        </button>
+      )}
+    </>
+  )}
+</div>
 
       {/* Authentication Status Indicator */}
       {(!isAuthenticated || !user) && (
@@ -405,6 +430,6 @@ export default function ProductCardStyleOne({ datas, type = 1, className = "" })
           Login Required
         </div>
       )}
-    </div>
+    </Link>
   );
 }

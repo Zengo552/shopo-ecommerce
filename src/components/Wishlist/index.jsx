@@ -30,24 +30,87 @@ export default function Wishlist({ wishlist = true }) {
         return;
       }
 
-      console.log("Fetching favorites from backend...");
+      console.log("Fetching favorites and cart from backend...");
       
-      const response = await api.get('/favorites', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // Fetch both favorites and cart simultaneously
+      const [favoritesResponse, cartResponse] = await Promise.all([
+        api.get('/favorites', { headers: { 'Authorization': `Bearer ${token}` } }),
+        api.get('/api/cart', { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+
+      console.log("Favorites response:", favoritesResponse.data);
+      console.log("Cart response:", cartResponse.data);
+
+      if (favoritesResponse.data.success) {
+        const cartItems = cartResponse.data.success ? cartResponse.data.cart.cartItems : [];
+        
+        // Map the backend response with proper image handling
+        const mappedProducts = (favoritesResponse.data.favorites || []).map((favorite) => {
+          // Try to find this product in the cart to get the properly authenticated image URL
+          const cartItem = cartItems.find(item => item.productId === favorite.productId);
+          
+          let productImage;
+          
+          if (cartItem && cartItem.productImage) {
+            // Use the cart image URL which has proper S3 authentication
+            productImage = cartItem.productImage;
+            console.log(`Using cart image for product ${favorite.productId}:`, productImage);
+          } else {
+            // Fallback to image proxy if not found in cart
+            const imageFilename = favorite.imageUrl || favorite.productImage || 
+                                favorite.image || favorite.thumbnail;
+            productImage = imageFilename ? getProductImageUrl(imageFilename) : null;
+            console.log(`Using proxy image for product ${favorite.productId}:`, productImage);
+          }
+
+          return {
+            id: favorite.productId,
+            name: favorite.productName,
+            price: favorite.price,
+            productImage: productImage,
+            description: favorite.description || "",
+            color: favorite.color || null,
+            size: favorite.size || "Standard"
+          };
+        });
+        
+        console.log("Mapped products with proper image URLs:", mappedProducts);
+        setFavoriteProducts(mappedProducts);
+      } else {
+        setError(favoritesResponse.data.message || "Failed to load wishlist");
+      }
+    } catch (err) {
+      console.error("Failed to fetch favorites:", err);
+      if (err.response?.status === 401) {
+        setError("Your session has expired. Please log in again.");
+        localStorage.removeItem('authToken');
+        window.dispatchEvent(new Event('authChange'));
+      } else {
+        // If cart fetch fails but favorites works, try with just favorites
+        if (err.config?.url === '/api/cart') {
+          console.log("Cart fetch failed, trying with favorites only...");
+          fetchFavoritesFallback();
+        } else {
+          setError("Failed to load wishlist. Please try again.");
         }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback method if cart fetch fails
+  const fetchFavoritesFallback = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await api.get('/favorites', {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      console.log("Full backend response:", response.data);
-
       if (response.data.success) {
-        // Map the backend response with proper image handling
         const mappedProducts = (response.data.favorites || []).map((favorite) => {
-          // Get the image filename from any available field
           const imageFilename = favorite.imageUrl || favorite.productImage || 
                               favorite.image || favorite.thumbnail;
-          
-          // Convert to full URL using the same pattern as cart
           const productImage = imageFilename ? getProductImageUrl(imageFilename) : null;
 
           return {
@@ -61,22 +124,11 @@ export default function Wishlist({ wishlist = true }) {
           };
         });
         
-        console.log("Mapped products with full image URLs:", mappedProducts);
+        console.log("Mapped products with fallback image URLs:", mappedProducts);
         setFavoriteProducts(mappedProducts);
-      } else {
-        setError(response.data.message || "Failed to load wishlist");
       }
     } catch (err) {
-      console.error("Failed to fetch favorites:", err);
-      if (err.response?.status === 401) {
-        setError("Your session has expired. Please log in again.");
-        localStorage.removeItem('authToken');
-        window.dispatchEvent(new Event('authChange'));
-      } else {
-        setError("Failed to load wishlist. Please try again.");
-      }
-    } finally {
-      setLoading(false);
+      setError("Failed to load wishlist. Please try again.");
     }
   };
 
@@ -181,6 +233,9 @@ export default function Wishlist({ wishlist = true }) {
 
       if (successfulAdds.length > 0) {
         alert(`Successfully added ${successfulAdds.length} items to cart!`);
+        
+        // Refresh the wishlist to get updated cart images
+        fetchFavorites();
       }
       
       if (failedAdds.length > 0) {

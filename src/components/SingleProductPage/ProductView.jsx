@@ -218,17 +218,10 @@ export default function ProductView({ product, reportHandler, className }) {
               )}
             </div>
             
-            {/* Stock status badge */}
-            <div className={`absolute top-4 right-4 px-3 py-1 text-xs font-semibold rounded-full ${stockStatus.class}`}>
-              {stockStatus.text}
-            </div>
-
-            {/* Out of stock overlay */}
-            {productData.isOutOfStock && (
-              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                <div className="bg-white px-6 py-3 rounded-lg text-red-600 font-semibold text-lg">
-                  Out of Stock
-                </div>
+            {/* Stock status badge - Only show for low stock, hide for out of stock */}
+            {productData.isLowStock && (
+              <div className={`absolute top-4 right-4 px-3 py-1 text-xs font-semibold rounded-full ${stockStatus.class}`}>
+                {stockStatus.text}
               </div>
             )}
           </div>
@@ -300,9 +293,12 @@ export default function ProductView({ product, reportHandler, className }) {
               </span>
             </div>
             
-            <div className={`px-3 py-1 text-xs font-semibold rounded-full ${stockStatus.class}`}>
-              {stockStatus.text}
-            </div>
+            {/* Stock status - Only show for low stock, hide for out of stock */}
+            {productData.isLowStock && (
+              <div className={`px-3 py-1 text-xs font-semibold rounded-full ${stockStatus.class}`}>
+                {stockStatus.text}
+              </div>
+            )}
           </div>
 
           {/* Price */}
@@ -412,8 +408,7 @@ export default function ProductView({ product, reportHandler, className }) {
             </>
           ) : (
             <div className="bg-gray-100 p-6 rounded-lg mb-6">
-              <p className="text-red-600 font-semibold mb-2 text-lg">Out of Stock</p>
-              <p className="text-gray-600">This product is currently unavailable. Check back later or browse similar items.</p>
+              <p className="text-gray-600">This product is not available at the moment. Check back later or browse similar items.</p>
             </div>
           )}
 
@@ -439,7 +434,7 @@ export default function ProductView({ product, reportHandler, className }) {
                 <p className="text-sm">
                   <span className="font-medium text-gray-900">Availability:</span>{' '}
                   <span className={`font-semibold ${stockStatus.class.split(' ')[0]}`}>
-                    {stockStatus.text}
+                    {stockStatus.text === "Out of Stock" ? "Currently Unavailable" : stockStatus.text}
                   </span>
                 </p>
                 <p className="text-sm">

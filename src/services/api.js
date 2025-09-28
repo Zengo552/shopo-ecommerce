@@ -103,44 +103,55 @@ const apiRequest = async (endpoint, options = {}) => {
   }
 };
 
-// FIXED: Enhanced Cart APIs with correct parameter format
-export const cartAPI = {
-  getCart: () => apiRequest('/api/cart'),
-  
-  // FIXED: Send productId as query parameter instead of request body
-  addOrUpdateItem: (cartItem) => {
-    const { productId, quantity } = cartItem;
+// Enhanced Review APIs with complete functionality
+export const reviewAPI = {
+  // Get reviews for a product with pagination and filtering
+  getByProduct: (productId, pagination = {}) => {
+    const params = new URLSearchParams();
+    params.append('productId', productId);
     
-    // Validate required parameters
-    if (!productId) {
-      throw new Error('productId is required');
-    }
-    
-    // Send as query parameters instead of request body
-    return apiRequest(`/api/cart/items?productId=${productId}&quantity=${quantity || 1}`, {
-      method: 'POST',
-      // No body needed - parameters are in URL
+    // Add pagination parameters
+    Object.entries(pagination).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
     });
+    
+    return apiRequest(`/api/reviews/product/${productId}?${params.toString()}`);
   },
   
-  updateItemQuantity: (productId, newQuantity) => 
-    apiRequest(`/api/cart/items/${productId}?quantity=${newQuantity}`, {
-      method: 'PUT',
+  // Add a new review
+  addReview: (reviewData) => 
+    apiRequest('/api/reviews', {
+      method: 'POST',
+      body: JSON.stringify(reviewData),
     }),
   
-  removeItem: (productId) => 
-    apiRequest(`/api/cart/items/${productId}`, { method: 'DELETE' }),
+  // Update an existing review
+  updateReview: (id, reviewData) =>
+    apiRequest(`/api/reviews/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(reviewData),
+    }),
   
-  clearCart: () => 
-    apiRequest('/api/cart/clear', { method: 'DELETE' }),
+  // Delete a review
+  deleteReview: (id) => 
+    apiRequest(`/api/reviews/${id}`, { method: 'DELETE' }),
 
-  // Additional cart endpoints
-  getCartCount: () => apiRequest('/api/cart/count'),
-};
+  // Get review statistics for a product
+  getReviewStats: (productId) =>
+    apiRequest(`/api/reviews/product/${productId}/stats`),
 
-// Enhanced Favorite APIs with better error handling
-export const favoriteAPI = {
-  getUserFavorites: (pagination = {}) => {
+  // Check if user has reviewed a product
+  checkUserReview: (productId, userEmail) => {
+    const params = new URLSearchParams();
+    if (userEmail) params.append('userEmail', userEmail);
+    
+    return apiRequest(`/api/reviews/product/${productId}/check?${params.toString()}`);
+  },
+
+  // Get reviews by user
+  getByUser: (userId, pagination = {}) => {
     const params = new URLSearchParams();
     
     // Add pagination parameters
@@ -150,23 +161,15 @@ export const favoriteAPI = {
       }
     });
     
-    return apiRequest(`/favorites?${params.toString()}`);
+    return apiRequest(`/api/reviews/user/${userId}?${params.toString()}`);
   },
-  
-  addToFavorites: (productId) => 
-    apiRequest(`/favorites/${productId}`, { method: 'POST' }),
-  
-  removeFromFavorites: (productId) => 
-    apiRequest(`/favorites/${productId}`, { method: 'DELETE' }),
 
-  checkFavorite: (productId) => 
-    apiRequest(`/favorites/check/${productId}`),
-
-  // Debug endpoint
-  debug: () => apiRequest('/favorites/debug'),
+  // Get recent reviews across all products
+  getRecentReviews: (limit = 10) =>
+    apiRequest(`/api/reviews/recent?limit=${limit}`),
 };
 
-// Enhanced Product APIs with better error handling
+// Enhanced Product APIs with review integration
 export const productAPI = {
   getAll: async (filters = {}, pagination = {}) => {
     const params = new URLSearchParams();
@@ -243,11 +246,9 @@ export const productAPI = {
       method: 'POST',
       body: JSON.stringify({ ids }),
     }),
-};
 
-// Enhanced Review APIs
-export const reviewAPI = {
-  getByProduct: (productId, pagination = {}) => {
+  // Product review statistics
+  getProductsWithReviewStats: (pagination = {}) => {
     const params = new URLSearchParams();
     
     // Add pagination parameters
@@ -257,23 +258,71 @@ export const reviewAPI = {
       }
     });
     
-    return apiRequest(`/reviews/product/${productId}?${params.toString()}`);
+    return apiRequest(`/products/with-review-stats?${params.toString()}`);
+  },
+};
+
+// Enhanced Cart APIs with correct parameter format
+export const cartAPI = {
+  getCart: () => apiRequest('/api/cart'),
+  
+  // FIXED: Send productId as query parameter instead of request body
+  addOrUpdateItem: (cartItem) => {
+    const { productId, quantity } = cartItem;
+    
+    // Validate required parameters
+    if (!productId) {
+      throw new Error('productId is required');
+    }
+    
+    // Send as query parameters instead of request body
+    return apiRequest(`/api/cart/items?productId=${productId}&quantity=${quantity || 1}`, {
+      method: 'POST',
+      // No body needed - parameters are in URL
+    });
   },
   
-  addReview: (reviewData) => 
-    apiRequest('/reviews', {
-      method: 'POST',
-      body: JSON.stringify(reviewData),
+  updateItemQuantity: (productId, newQuantity) => 
+    apiRequest(`/api/cart/items/${productId}?quantity=${newQuantity}`, {
+      method: 'PUT',
     }),
   
-  deleteReview: (id) => 
-    apiRequest(`/reviews/${id}`, { method: 'DELETE' }),
+  removeItem: (productId) => 
+    apiRequest(`/api/cart/items/${productId}`, { method: 'DELETE' }),
+  
+  clearCart: () => 
+    apiRequest('/api/cart/clear', { method: 'DELETE' }),
 
-  updateReview: (id, reviewData) =>
-    apiRequest(`/reviews/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(reviewData),
-    }),
+  // Additional cart endpoints
+  getCartCount: () => apiRequest('/api/cart/count'),
+};
+
+// Enhanced Favorite APIs with better error handling
+export const favoriteAPI = {
+  getUserFavorites: (pagination = {}) => {
+    const params = new URLSearchParams();
+    
+    // Add pagination parameters
+    Object.entries(pagination).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    
+    return apiRequest(`/favorites?${params.toString()}`);
+  },
+  
+  addToFavorites: (productId) => 
+    apiRequest(`/favorites/${productId}`, { method: 'POST' }),
+  
+  removeFromFavorites: (productId) => 
+    apiRequest(`/favorites/${productId}`, { method: 'DELETE' }),
+
+  checkFavorite: (productId) => 
+    apiRequest(`/favorites/check/${productId}`),
+
+  // Debug endpoint
+  debug: () => apiRequest('/favorites/debug'),
 };
 
 // Enhanced Order APIs
@@ -305,6 +354,10 @@ export const orderAPI = {
   // Additional order endpoints
   getUserOrders: () => apiRequest('/api/orders/my-orders'),
   cancelOrder: (id) => apiRequest(`/api/orders/${id}/cancel`, { method: 'PUT' }),
+
+  // Order reviews - check if user can review purchased products
+  getReviewableProducts: (orderId) =>
+    apiRequest(`/api/orders/${orderId}/reviewable-products`),
 };
 
 // Enhanced TheWallet Payment APIs
@@ -395,6 +448,76 @@ export const shopAPI = {
     });
     return apiRequest(`/shops/${shopId}/products?${params.toString()}`);
   },
+
+  // Shop reviews
+  getShopReviews: (shopId, pagination = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(pagination).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    return apiRequest(`/shops/${shopId}/reviews?${params.toString()}`);
+  },
+};
+
+// Enhanced User APIs with review integration
+export const userAPI = {
+  getUserProfile: (userId) => apiRequest(`/api/users/${userId}`),
+  
+  updateUserProfile: (userId, userData) =>
+    apiRequest(`/api/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    }),
+
+  // User review history
+  getUserReviews: (userId, pagination = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(pagination).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    return apiRequest(`/api/users/${userId}/reviews?${params.toString()}`);
+  },
+
+  // User's purchased products available for review
+  getReviewableProducts: (userId) =>
+    apiRequest(`/api/users/${userId}/reviewable-products`),
+};
+
+// Enhanced Auth APIs
+export const authAPI = {
+  login: (credentials) =>
+    apiRequest('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    }),
+
+  register: (userData) =>
+    apiRequest('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    }),
+
+  logout: () => apiRequest('/api/auth/logout', { method: 'POST' }),
+
+  refreshToken: () => apiRequest('/api/auth/refresh', { method: 'POST' }),
+
+  verifyEmail: (token) => apiRequest(`/api/auth/verify-email?token=${token}`),
+
+  forgotPassword: (email) =>
+    apiRequest('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token, newPassword) =>
+    apiRequest('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    }),
 };
 
 // Enhanced helper function for FormData requests
@@ -485,6 +608,75 @@ export const validateCurrentToken = () => {
     return !(exp && Date.now() >= exp * 1000);
   } catch (error) {
     return false;
+  }
+};
+
+// Review-specific utilities
+export const reviewUtils = {
+  // Calculate average rating from reviews array
+  calculateAverageRating: (reviews) => {
+    if (!reviews || reviews.length === 0) return 0;
+    
+    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return Math.round((total / reviews.length) * 10) / 10;
+  },
+
+  // Get rating distribution
+  getRatingDistribution: (reviews) => {
+    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    
+    reviews.forEach(review => {
+      if (review.rating >= 1 && review.rating <= 5) {
+        distribution[review.rating]++;
+      }
+    });
+    
+    return distribution;
+  },
+
+  // Format review date
+  formatReviewDate: (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  },
+
+  // Validate review data before submission
+  validateReviewData: (reviewData) => {
+    const errors = [];
+    
+    if (!reviewData.rating || reviewData.rating < 1 || reviewData.rating > 5) {
+      errors.push('Please select a valid rating (1-5 stars)');
+    }
+    
+    if (!reviewData.userName || reviewData.userName.trim().length < 2) {
+      errors.push('Please enter your name (minimum 2 characters)');
+    }
+    
+    if (!reviewData.userEmail || !/\S+@\S+\.\S+/.test(reviewData.userEmail)) {
+      errors.push('Please enter a valid email address');
+    }
+    
+    if (!reviewData.comment || reviewData.comment.trim().length < 10) {
+      errors.push('Please write a review with at least 10 characters');
+    }
+    
+    if (reviewData.comment && reviewData.comment.trim().length > 1000) {
+      errors.push('Review comment cannot exceed 1000 characters');
+    }
+    
+    return errors;
   }
 };
 
