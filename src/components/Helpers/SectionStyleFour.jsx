@@ -1,42 +1,44 @@
-import ProductCardRowStyleTwo from "./Cards/ProductCardRowStyleTwo";
-import DataIteration from "./DataIteration";
-import ViewMoreTitle from "./ViewMoreTitle";
+// components/Helpers/SectionStyleFour.jsx (Admin modifications)
+import React from "react";
+import ProductCard from "../ProductCard";
 
 export default function SectionStyleFour({
-  className,
+  products,
   sectionTitle,
   seeMoreUrl,
-  products = [],
+  className,
+  adminMode = false
 }) {
   return (
-    <div className={`section-style-one ${className || ""}`}>
-      <ViewMoreTitle categoryTitle={sectionTitle} seeMoreUrl={seeMoreUrl}>
-        <div className="products-section w-full">
-          <div className="grid lg:grid-cols-3 grid-cols-1 xl:gap-[30px] lg:gap-5">
-            <div className="item-col">
-              <DataIteration datas={products} startLength={0} endLength={4}>
-                {({ datas }) => (
-                  <ProductCardRowStyleTwo key={datas.id} datas={datas} />
-                )}
-              </DataIteration>
-            </div>
-            <div className="item-col">
-              <DataIteration datas={products} startLength={4} endLength={8}>
-                {({ datas }) => (
-                  <ProductCardRowStyleTwo key={datas.id} datas={datas} />
-                )}
-              </DataIteration>
-            </div>
-            <div className="item-col">
-              <DataIteration datas={products} startLength={8} endLength={12}>
-                {({ datas }) => (
-                  <ProductCardRowStyleTwo key={datas.id} datas={datas} />
-                )}
-              </DataIteration>
-            </div>
+    <div className={`${className}`}>
+      <div className="section-title flex justify-between items-center mb-5">
+        <h2 className="text-2xl font-bold text-qblacktext">{sectionTitle}</h2>
+        {seeMoreUrl && (
+          <a href={seeMoreUrl}>
+            <span className="text-qred text-sm font-semibold">See All</span>
+          </a>
+        )}
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {products.slice(0, 4).map((product) => (
+          <div key={product.id} className="relative">
+            {adminMode && (
+              <div className="absolute top-2 right-2 z-10">
+                <span className="bg-purple-500 text-white px-2 py-1 rounded text-xs font-semibold">
+                  Popular
+                </span>
+              </div>
+            )}
+            <ProductCard product={product} />
+            {adminMode && (
+              <div className="mt-2 text-center">
+                <span className="text-green-600 font-semibold">45 Sales</span>
+              </div>
+            )}
           </div>
-        </div>
-      </ViewMoreTitle>
+        ))}
+      </div>
     </div>
   );
 }

@@ -30,6 +30,19 @@ import HomeThree from "./components/HomeThree/index.jsx";
 import HomeFour from "./components/HomeFour/index.jsx";
 import HomeFive from "./components/HomeFive/index.jsx";
 
+// Admin Panel Components (You'll need to create these)
+import AdminDashboard from "./components/Admin/Dashboard/index.jsx";
+import AdminProducts from "./components/Admin/Products/index.jsx";
+import AdminAddProduct from "./components/Admin/Products/AddProduct.jsx";
+import AdminEditProduct from "./components/Admin/Products/EditProduct.jsx";
+import AdminCategories from "./components/Admin/Categories/index.jsx";
+import AdminOrders from "./components/Admin/Orders/index.jsx";
+import AdminOrderDetails from "./components/Admin/Orders/OrderDetails.jsx";
+import AdminUsers from "./components/Admin/Users/index.jsx";
+import AdminSellers from "./components/Admin/Sellers/index.jsx";
+import AdminSettings from "./components/Admin/Settings/index.jsx";
+import AdminAnalytics from "./components/Admin/Analytics/index.jsx";
+
 const router = createBrowserRouter([
   { 
     path: "/", 
@@ -155,6 +168,58 @@ const router = createBrowserRouter([
     path: "/search", 
     element: <AllProductPage /> 
   },
+  
+  // Admin Panel Routes
+  {
+    path: "/admin",
+    element: <AdminDashboard />,
+    // You can add authentication protection here later
+  },
+  {
+    path: "/admin/dashboard",
+    element: <AdminDashboard />,
+  },
+  {
+    path: "/admin/products",
+    element: <AdminProducts />,
+  },
+  {
+    path: "/admin/products/add",
+    element: <AdminAddProduct />,
+  },
+  {
+    path: "/admin/products/edit/:id",
+    element: <AdminEditProduct />,
+  },
+  {
+    path: "/admin/categories",
+    element: <AdminCategories />,
+  },
+  {
+    path: "/admin/orders",
+    element: <AdminOrders />,
+  },
+  {
+    path: "/admin/orders/:id",
+    element: <AdminOrderDetails />,
+  },
+  {
+    path: "/admin/users",
+    element: <AdminUsers />,
+  },
+  {
+    path: "/admin/sellers",
+    element: <AdminSellers />,
+  },
+  {
+    path: "/admin/analytics",
+    element: <AdminAnalytics />,
+  },
+  {
+    path: "/admin/settings",
+    element: <AdminSettings />,
+  },
+  
   { 
     path: "*", 
     element: <FourZeroFour /> 
