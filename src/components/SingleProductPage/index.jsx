@@ -338,26 +338,12 @@ export default function SingleProductPage() {
                 )}
 
                 {tab === "reviews" && (
-                  <div ref={reviewElement}>
-                    <Reviews
-                      reviews={reviews}
-                      rating={rating}
-                      ratingHandler={ratingHandler}
-                      name={name}
-                      nameHandler={setName}
-                      email={email}
-                      emailHandler={setEmail}
-                      phone={phone}
-                      phoneHandler={setPhone}
-                      message={message}
-                      messageHandler={setMessage}
-                      reviewAction={reviewAction}
-                      hoverRating={hoverRating}
-                      hoverHandler={hoverHandler}
-                      reviewLoading={reviewLoading}
-                    />
-                  </div>
-                )}
+  <div ref={reviewElement}>
+    <Reviews 
+      productId={id} 
+    />
+  </div>
+)}
 
                 {tab === "seller" && (
                   <div>

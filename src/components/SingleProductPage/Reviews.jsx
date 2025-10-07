@@ -38,37 +38,74 @@ export default function Reviews({ productId }) {
     try {
       setLoading(true);
       setError('');
-      const response = await reviewAPI.getByProduct(productId);
+      console.log('🔄 Fetching reviews for product:', productId);
       
+      const response = await reviewAPI.getByProduct(productId);
+      console.log('📥 Reviews API response:', response);
+      
+      // Handle different response structures
+      let reviewsData = [];
+      let avgRating = 0;
+      let total = 0;
+
       if (response.success) {
-        setReviews(response.reviews || []);
-        setAverageRating(response.averageRating || reviewUtils.calculateAverageRating(response.reviews));
-        setTotalReviews(response.totalReviews || response.reviews?.length || 0);
+        // Try different possible response structures
+        reviewsData = response.reviews || response.data || response.items || [];
+        avgRating = response.averageRating || response.avgRating || response.rating || 0;
+        total = response.totalReviews || response.total || response.count || reviewsData.length;
         
-        // Check if current user has already reviewed
-        checkUserReview();
+        // If no average rating in response, calculate it
+        if (avgRating === 0 && reviewsData.length > 0) {
+          avgRating = reviewUtils.calculateAverageRating(reviewsData);
+        }
+      } else if (Array.isArray(response)) {
+        // Handle case where API returns array directly
+        reviewsData = response;
+        avgRating = reviewUtils.calculateAverageRating(reviewsData);
+        total = reviewsData.length;
       } else {
-        setError(response.message || 'Failed to fetch reviews');
+        // Handle case where response is the reviews array directly
+        reviewsData = response.reviews || response.data || [];
+        avgRating = reviewUtils.calculateAverageRating(reviewsData);
+        total = reviewsData.length;
       }
+
+      console.log('📊 Processed reviews data:', {
+        reviewsCount: reviewsData.length,
+        averageRating: avgRating,
+        totalReviews: total
+      });
+
+      setReviews(reviewsData);
+      setAverageRating(avgRating);
+      setTotalReviews(total);
+      
+      // Check if current user has already reviewed
+      checkUserReview(reviewsData);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      console.error('❌ Error fetching reviews:', error);
       setError('Failed to load reviews. Please try again.');
+      // Set empty state
+      setReviews([]);
+      setAverageRating(0);
+      setTotalReviews(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const checkUserReview = async () => {
+  const checkUserReview = (reviewsData = []) => {
     try {
       // Get user email from localStorage or form
       const userEmail = email || getCurrentUserEmail();
-      if (userEmail) {
-        const response = await reviewAPI.checkUserReview(productId, userEmail);
-        setHasUserReviewed(response.hasReviewed || false);
+      if (userEmail && reviewsData.length > 0) {
+        const userHasReviewed = reviewsData.some(review => 
+          review.userEmail === userEmail || review.email === userEmail
+        );
+        setHasUserReviewed(userHasReviewed);
       }
     } catch (error) {
       console.error('Error checking user review:', error);
-      // Don't show error for this check
     }
   };
 
@@ -77,7 +114,7 @@ export default function Reviews({ productId }) {
       const userData = localStorage.getItem('userData');
       if (userData) {
         const user = JSON.parse(userData);
-        return user.email || '';
+        return user.email || user.userEmail || '';
       }
     } catch (error) {
       console.error('Error getting user data:', error);
@@ -107,7 +144,9 @@ export default function Reviews({ productId }) {
       setError('');
       setSuccess('');
 
+      console.log('📤 Submitting review:', reviewData);
       const response = await reviewAPI.addReview(reviewData);
+      console.log('✅ Review submission response:', response);
 
       if (response.success) {
         setSuccess('Review submitted successfully!');
@@ -128,7 +167,7 @@ export default function Reviews({ productId }) {
         setError(response.message || 'Failed to submit review');
       }
     } catch (error) {
-      console.error('Error submitting review:', error);
+      console.error('❌ Error submitting review:', error);
       setError(error.message || 'Failed to submit review. Please try again.');
     } finally {
       setReviewLoading(false);
@@ -142,6 +181,7 @@ export default function Reviews({ productId }) {
 
   // Format date using the utility function
   const formatDate = (dateString) => {
+    if (!dateString) return 'Recently';
     return reviewUtils.formatReviewDate(dateString);
   };
 
@@ -163,16 +203,30 @@ export default function Reviews({ productId }) {
     );
   };
 
+  // Get user initial for avatar
+  const getUserInitial = (userName) => {
+    return userName?.charAt(0)?.toUpperCase() || "U";
+  };
+
   if (loading) {
     return (
-      <div className="review-wrapper w-full flex justify-center py-10">
+      <div className="review-wrapper w-full flex justify-center items-center py-10">
         <LoaderStyleOne />
+        <span className="ml-2 text-gray-600">Loading reviews...</span>
       </div>
     );
   }
 
   return (
     <div className="review-wrapper w-full">
+      {/* Debug info - remove in production */}
+      {import.meta.env.DEV && (
+        <div className="bg-blue-50 p-3 rounded-lg mb-4 text-xs">
+          <strong>Debug Info:</strong> {reviews.length} reviews loaded, 
+          Average: {averageRating}, Total: {totalReviews}
+        </div>
+      )}
+
       {/* Review Summary Section */}
       <div className="summary-section bg-white p-6 rounded-lg shadow-sm mb-8">
         <div className="flex flex-col md:flex-row items-center justify-between">
@@ -186,27 +240,29 @@ export default function Reviews({ productId }) {
             </div>
             
             {/* Rating Distribution */}
-            <div className="hidden md:block">
-              {[5, 4, 3, 2, 1].map((star) => {
-                const distribution = getRatingDistribution();
-                const count = distribution[star] || 0;
-                const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
-                
-                return (
-                  <div key={star} className="flex items-center space-x-2 text-sm mb-1">
-                    <span className="w-4 text-right">{star}</span>
-                    <Star filled={true} className="w-4 h-4" />
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-yellow-400 h-2 rounded-full" 
-                        style={{ width: `${percentage}%` }}
-                      ></div>
+            {reviews.length > 0 && (
+              <div className="hidden md:block">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const distribution = getRatingDistribution();
+                  const count = distribution[star] || 0;
+                  const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
+                  
+                  return (
+                    <div key={star} className="flex items-center space-x-2 text-sm mb-1">
+                      <span className="w-4 text-right">{star}</span>
+                      <Star filled={true} className="w-4 h-4" />
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-yellow-400 h-2 rounded-full" 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                      <span className="w-8 text-left">({count})</span>
                     </div>
-                    <span className="w-8 text-left">({count})</span>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
           
           <div className="text-center md:text-right">
@@ -240,24 +296,24 @@ export default function Reviews({ productId }) {
         <div className="w-full comments mb-[60px]">
           {reviews.length > 0 ? (
             <div className="space-y-4">
-              {reviews.map((review) => (
+              {reviews.map((review, index) => (
                 <div
-                  key={review.id}
+                  key={review.id || review._id || `review-${index}`}
                   className="comment-item bg-white px-6 py-6 rounded-lg shadow-sm border border-qgray-border hover:shadow-md transition-shadow"
                 >
                   <div className="comment-author flex justify-between items-center mb-4">
                     <div className="flex space-x-3 items-center">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
                         <span className="text-lg font-medium text-white">
-                          {review.userName?.charAt(0)?.toUpperCase() || "U"}
+                          {getUserInitial(review.userName || review.name)}
                         </span>
                       </div>
                       <div>
                         <p className="text-[16px] font-medium text-qblack">
-                          {review.userName || "Anonymous"}
+                          {review.userName || review.name || "Anonymous"}
                         </p>
                         <p className="text-[13px] font-normal text-qgray">
-                          {formatDate(review.createdAt)}
+                          {formatDate(review.createdAt || review.date || review.timestamp)}
                           {review.verifiedPurchase && (
                             <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               ✓ Verified Purchase
@@ -275,7 +331,7 @@ export default function Reviews({ productId }) {
                   </div>
                   <div className="comment">
                     <p className="text-[15px] text-qgray leading-7 text-normal whitespace-pre-wrap">
-                      {review.comment}
+                      {review.comment || review.message || review.reviewText}
                     </p>
                   </div>
                   {review.updatedAt && review.updatedAt !== review.createdAt && (
@@ -339,8 +395,8 @@ export default function Reviews({ productId }) {
                     name="name"
                     inputClasses="h-[50px]"
                     value={name}
-                    inputHandler={setName}
-                    required
+                    onChange={(e) => setName(e.target.value)}
+                    required={true}
                   />
                 </div>
                 <div>
@@ -351,8 +407,8 @@ export default function Reviews({ productId }) {
                     name="email"
                     inputClasses="h-[50px]"
                     value={email}
-                    inputHandler={setEmail}
-                    required
+                    onChange={(e) => setEmail(e.target.value)}
+                    required={true}
                   />
                 </div>
                 <div>
@@ -363,7 +419,7 @@ export default function Reviews({ productId }) {
                     name="phone"
                     inputClasses="h-[50px]"
                     value={phone}
-                    inputHandler={setPhone}
+                    onChange={(e) => setPhone(e.target.value)}
                   />
                 </div>
               </div>
@@ -399,7 +455,10 @@ export default function Reviews({ productId }) {
                 className="black-btn w-full md:w-[300px] h-[50px] font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
               >
                 {reviewLoading ? (
-                  <LoaderStyleOne />
+                  <div className="flex items-center justify-center">
+                    <LoaderStyleOne />
+                    <span className="ml-2">Submitting...</span>
+                  </div>
                 ) : (
                   <span>Submit Review</span>
                 )}
@@ -419,7 +478,7 @@ export default function Reviews({ productId }) {
             <h3 className="text-lg font-medium text-blue-800 mb-2">Thank You for Your Review!</h3>
             <p className="text-blue-600">
               You've already submitted a review for this product. 
-              {reviews.some(r => r.userEmail === email) && ' Your review is visible above.'}
+              {reviews.some(r => r.userEmail === email || r.email === email) && ' Your review is visible above.'}
             </p>
           </div>
         )}

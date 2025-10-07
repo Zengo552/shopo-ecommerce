@@ -16,7 +16,7 @@ import ToastNotifications from "./components/ToastNotifications";
 // Debug logging for provider initialization
 console.log('🚀 Initializing application...');
 
-// Error Boundary Component
+// Enhanced Error Boundary Component
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -33,86 +33,80 @@ class ErrorBoundary extends React.Component {
       error: error,
       errorInfo: errorInfo
     });
-    console.error("Error details:", error, errorInfo);
     
-    // Log additional context info
+    // Log auth state for debugging
     const authToken = localStorage.getItem('authToken');
     const userData = localStorage.getItem('userData');
-    console.log('Auth state at error:', { 
-      hasToken: !!authToken, 
-      hasUserData: !!userData,
-      tokenLength: authToken ? authToken.length : 0
+    
+    console.error("💥 Application Error:", {
+      error: error.message,
+      componentStack: errorInfo.componentStack,
+      authState: {
+        hasToken: !!authToken,
+        hasUserData: !!userData,
+        userRole: userData ? JSON.parse(userData).role : 'none'
+      }
     });
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
-          <h1>Something went wrong.</h1>
-          <p>We're sorry for the inconvenience. Please try refreshing the page.</p>
-          
-          {/* Additional debug info */}
-          <div style={{ margin: '1rem 0', padding: '1rem', background: '#f5f5f5', borderRadius: '4px' }}>
-            <p style={{ fontSize: '0.9rem', color: '#666' }}>
-              <strong>Debug Info:</strong><br />
-              Auth Token: {localStorage.getItem('authToken') ? 'Present' : 'Missing'}<br />
-              User Data: {localStorage.getItem('userData') ? 'Present' : 'Missing'}
-            </p>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h1>
+            <p className="text-gray-600 mb-6">We're sorry for the inconvenience. Please try refreshing the page.</p>
+            
+            {/* Debug info */}
+            <div className="bg-gray-100 rounded-lg p-4 mb-6 text-left">
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>Debug Information:</strong>
+              </p>
+              <div className="text-xs text-gray-600 space-y-1">
+                <div>Auth Token: {localStorage.getItem('authToken') ? '✅ Present' : '❌ Missing'}</div>
+                <div>User Data: {localStorage.getItem('userData') ? '✅ Present' : '❌ Missing'}</div>
+                <div>Path: {window.location.pathname}</div>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button 
+                onClick={() => {
+                  // Clear potentially corrupted auth data
+                  localStorage.removeItem('authToken');
+                  localStorage.removeItem('userData');
+                  window.location.reload();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Clear Data & Refresh
+              </button>
+              
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              >
+                Refresh Page
+              </button>
+            </div>
+
+            {import.meta.env.DEV && (
+              <details className="mt-6 text-left">
+                <summary className="cursor-pointer text-sm text-purple-600 font-medium">Error Details (Development)</summary>
+                <pre className="mt-2 p-3 bg-gray-900 text-gray-100 rounded text-xs overflow-auto max-h-40">
+                  {this.state.error && this.state.error.toString()}
+                  {"\n\n"}
+                  {this.state.errorInfo.componentStack}
+                </pre>
+              </details>
+            )}
           </div>
-          
-          <button 
-            onClick={() => {
-              // Clear potentially corrupted auth data
-              localStorage.removeItem('authToken');
-              localStorage.removeItem('userData');
-              window.location.reload();
-            }}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              margin: '0.5rem'
-            }}
-          >
-            Clear Data & Refresh
-          </button>
-          
-          <button 
-            onClick={() => window.location.reload()}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              margin: '0.5rem'
-            }}
-          >
-            Refresh Page
-          </button>
-          
-          {import.meta.env.DEV && (
-            <details style={{ marginTop: '1rem', textAlign: 'left' }}>
-              <summary>Error Details (Development Only)</summary>
-              <pre style={{ 
-                whiteSpace: 'pre-wrap',
-                backgroundColor: '#f8f9fa',
-                padding: '1rem',
-                borderRadius: '4px',
-                overflowX: 'auto',
-                fontSize: '0.8rem'
-              }}>
-                {this.state.error && this.state.error.toString()}
-                <br />
-                {this.state.errorInfo.componentStack}
-              </pre>
-            </details>
-          )}
         </div>
       );
     }
@@ -121,7 +115,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Enhanced root component with debugging
+// Root component
 function RootComponent() {
   React.useEffect(() => {
     console.log('✅ Root component mounted');
@@ -129,15 +123,18 @@ function RootComponent() {
     // Log initial auth state
     const token = localStorage.getItem('authToken');
     const userData = localStorage.getItem('userData');
+    
     console.log('🔐 Initial auth state:', { 
       hasToken: !!token, 
-      userData: userData ? JSON.parse(userData) : null 
+      userData: userData ? JSON.parse(userData) : null,
+      environment: import.meta.env.MODE
     });
     
-    // Listen for auth changes
+    // Listen for auth changes across tabs
     const handleStorageChange = (e) => {
       if (e.key === 'authToken' || e.key === 'userData') {
-        console.log('🔄 Storage changed:', e.key, e.newValue);
+        console.log('🔄 Cross-tab storage change:', e.key);
+        window.dispatchEvent(new Event('authStateChange'));
       }
     };
     
@@ -162,6 +159,7 @@ function RootComponent() {
   );
 }
 
+// Service Worker Registration
 if (import.meta.env.MODE === "production") {
   registerSW();
   console.log('🏭 Production mode enabled');
@@ -169,7 +167,7 @@ if (import.meta.env.MODE === "production") {
   console.log('🔧 Development mode enabled');
 }
 
-// Initialize AOS with better configuration
+// Initialize animations
 AOS.init({
   duration: 800,
   once: true,
@@ -178,7 +176,7 @@ AOS.init({
 
 console.log('🎯 Starting ReactDOM render...');
 
-// Render with error handling
+// Render application
 try {
   const root = ReactDOM.createRoot(document.getElementById("root"));
   
@@ -196,14 +194,16 @@ try {
   const fallbackElement = document.getElementById("root");
   if (fallbackElement) {
     fallbackElement.innerHTML = `
-      <div style="padding: 2rem; text-align: center; font-family: sans-serif;">
-        <h1>Application Error</h1>
-        <p>Failed to load the application. Please refresh the page.</p>
-        <button onclick="window.location.reload()" style="padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-          Refresh Page
-        </button>
-        <div style="margin-top: 1rem; color: #666; font-size: 0.9rem;">
-          Error: ${renderError.message}
+      <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
+          <h1 class="text-2xl font-bold text-gray-900 mb-2">Application Error</h1>
+          <p class="text-gray-600 mb-4">Failed to load the application. Please refresh the page.</p>
+          <button onclick="window.location.reload()" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">
+            Refresh Page
+          </button>
+          <div class="mt-4 text-sm text-gray-500">
+            Error: ${renderError.message}
+          </div>
         </div>
       </div>
     `;

@@ -1,5 +1,7 @@
+// src/components/Auth/Login/index.jsx
 import { useState, Fragment } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../contexts/AuthProvider";
 
 // Placeholder components
 const Layout = ({ childrenClasses, children }) => {
@@ -31,6 +33,7 @@ const Thumbnail = () => {
 export default function Login() {
   const [checked, setValue] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   // State for form inputs
   const [email, setEmail] = useState("");
@@ -67,33 +70,70 @@ export default function Login() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-      
+      // Check if response is OK before trying to parse JSON
       if (!response.ok) {
-        throw new Error(data.message || "Login failed. Please check your credentials.");
+        const errorText = await response.text();
+        console.error("Login failed with status:", response.status, errorText);
+        
+        // Try to parse as JSON if possible, otherwise use text
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.message || `Login failed with status ${response.status}`);
+        } catch {
+          throw new Error(errorText || `Login failed with status ${response.status}`);
+        }
       }
 
+      // Check content type before parsing JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.warn("Non-JSON response received:", textResponse);
+        throw new Error("Server returned non-JSON response. Please try again.");
+      }
+
+      const data = await response.json();
+      
       console.log("Login successful:", data);
       
       // Extract and store the JWT token from the response
-      // Based on your screenshot, the token is in data.jwt
       if (data.jwt) {
-        localStorage.setItem('authToken', data.jwt);
+        // Use the auth context to login
+        if (data.user) {
+          login(data.user, data.jwt);
+        } else {
+          // If no user data in response, create basic user object
+          const userData = {
+            email: email,
+            id: data.userId || Date.now(), // fallback ID
+            role: data.role || 'user'
+          };
+          login(userData, data.jwt);
+        }
+
         console.log("JWT token stored successfully");
+        
+        // Check if user is admin and redirect accordingly
+        const userRole = data.user?.role || data.role || 'user';
+        const isAdmin = userRole === 'admin' || data.user?.isAdmin === true;
+        
+        console.log("User role detection:", {
+          role: userRole,
+          isAdmin: isAdmin,
+          userData: data.user
+        });
+
+        if (isAdmin) {
+          console.log("🔄 Redirecting admin to admin dashboard");
+          navigate("/admin/dashboard");
+        } else {
+          console.log("🔄 Redirecting regular user to home page");
+          navigate("/");
+        }
       } else {
         console.warn("No JWT token found in response");
+        setError("Login response missing token");
       }
-      
-      // Store user data if available
-      if (data.user) {
-        localStorage.setItem('userData', JSON.stringify(data.user));
-      }
-      
-      // Update global authentication state
-      window.dispatchEvent(new Event('authChange'));
-      
-      // Navigate to the home page after a successful login
-      navigate("/");
 
     } catch (err) {
       // Improved error handling

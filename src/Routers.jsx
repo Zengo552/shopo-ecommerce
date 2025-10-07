@@ -30,7 +30,7 @@ import HomeThree from "./components/HomeThree/index.jsx";
 import HomeFour from "./components/HomeFour/index.jsx";
 import HomeFive from "./components/HomeFive/index.jsx";
 
-// Admin Panel Components (You'll need to create these)
+// Admin Panel Components
 import AdminDashboard from "./components/Admin/Dashboard/index.jsx";
 import AdminProducts from "./components/Admin/Products/index.jsx";
 import AdminAddProduct from "./components/Admin/Products/AddProduct.jsx";
@@ -42,6 +42,9 @@ import AdminUsers from "./components/Admin/Users/index.jsx";
 import AdminSellers from "./components/Admin/Sellers/index.jsx";
 import AdminSettings from "./components/Admin/Settings/index.jsx";
 import AdminAnalytics from "./components/Admin/Analytics/index.jsx";
+
+// Authentication Components
+import PrivateRoute from "./components/Admin/PrivateRoute.jsx";
 
 const router = createBrowserRouter([
   { 
@@ -146,7 +149,11 @@ const router = createBrowserRouter([
   },
   { 
     path: "/profile", 
-    element: <Profile /> 
+    element: (
+      <PrivateRoute>
+        <Profile />
+      </PrivateRoute>
+    ) 
   },
   { 
     path: "/become-saller", 
@@ -169,55 +176,102 @@ const router = createBrowserRouter([
     element: <AllProductPage /> 
   },
   
-  // Admin Panel Routes
+  // Admin Panel Routes with Authentication Protection
   {
     path: "/admin",
-    element: <AdminDashboard />,
-    // You can add authentication protection here later
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminDashboard />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/dashboard",
-    element: <AdminDashboard />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminDashboard />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/products",
-    element: <AdminProducts />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminProducts />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/products/add",
-    element: <AdminAddProduct />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminAddProduct />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/products/edit/:id",
-    element: <AdminEditProduct />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminEditProduct />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/categories",
-    element: <AdminCategories />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminCategories />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/orders",
-    element: <AdminOrders />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminOrders />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/orders/:id",
-    element: <AdminOrderDetails />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminOrderDetails />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/users",
-    element: <AdminUsers />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminUsers />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/sellers",
-    element: <AdminSellers />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminSellers />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/analytics",
-    element: <AdminAnalytics />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminAnalytics />
+      </PrivateRoute>
+    ),
   },
   {
     path: "/admin/settings",
-    element: <AdminSettings />,
+    element: (
+      <PrivateRoute requireAdmin={true}>
+        <AdminSettings />
+      </PrivateRoute>
+    ),
   },
   
   { 
