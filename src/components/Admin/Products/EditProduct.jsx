@@ -1,31 +1,32 @@
 // components/Admin/Products/EditProduct.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { productAPI, categoryAPI } from '../../../services/api';
+import { productAPI, categoryAPI, shopAPI } from '../../../services/api';
 import './ProductForm.css';
 
 const EditProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
+  const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(false);
   const [product, setProduct] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
     originalPrice: '',
-    stock: '',
-    category: '',
-    image: '',
-    images: [''],
-    status: 'active',
-    featured: false
+    stockQuantity: '',
+    categoryId: '',
+    shopId: ''
   });
 
   useEffect(() => {
     fetchProduct();
     fetchCategories();
+    fetchShops();
   }, [id]);
 
   const fetchProduct = async () => {
@@ -37,13 +38,15 @@ const EditProduct = () => {
         description: response.description || '',
         price: response.price || '',
         originalPrice: response.originalPrice || '',
-        stock: response.stock || '',
-        category: response.category || '',
-        image: response.image || '',
-        images: response.images || [''],
-        status: response.status || 'active',
-        featured: response.featured || false
+        stockQuantity: response.stockQuantity || response.stock || '',
+        categoryId: response.categoryId || response.category?.id || '',
+        shopId: response.shopId || response.shop?.id || ''
       });
+      
+      // Set existing image preview
+      if (response.image) {
+        setImagePreview(response.image);
+      }
     } catch (error) {
       console.error('Error fetching product:', error);
     }
@@ -58,35 +61,35 @@ const EditProduct = () => {
     }
   };
 
+  const fetchShops = async () => {
+    try {
+      const response = await shopAPI.getAllShops();
+      setShops(response.shops || response.data || []);
+    } catch (error) {
+      console.error('Error fetching shops:', error);
+    }
+  };
+
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
   };
 
-  const handleImageAdd = () => {
-    setFormData(prev => ({
-      ...prev,
-      images: [...prev.images, '']
-    }));
-  };
-
-  const handleImageRemove = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleImageChange = (index, value) => {
-    const newImages = [...formData.images];
-    newImages[index] = value;
-    setFormData(prev => ({
-      ...prev,
-      images: newImages
-    }));
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -95,15 +98,22 @@ const EditProduct = () => {
 
     try {
       const productData = {
-        ...formData,
+        name: formData.name,
+        description: formData.description,
         price: parseFloat(formData.price),
-        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
-        stock: parseInt(formData.stock),
-        images: formData.images.filter(img => img.trim() !== '')
+        stockQuantity: parseInt(formData.stockQuantity),
+        categoryId: parseInt(formData.categoryId),
+        shopId: parseInt(formData.shopId)
       };
 
-      // You'll need to add an update product endpoint to your API
-      await productAPI.updateProduct(id, productData);
+      // Only add originalPrice if it has a value
+      if (formData.originalPrice && formData.originalPrice !== '') {
+        productData.originalPrice = parseFloat(formData.originalPrice);
+      }
+
+      console.log('Updating product:', productData);
+      
+      await productAPI.updateProduct(id, productData, imageFile);
       
       navigate('/admin/products');
     } catch (error) {
@@ -139,7 +149,7 @@ const EditProduct = () => {
       </div>
 
       <div className="admin-card">
-        <form onSubmit={handleSubmit} className="product-form">
+        <form onSubmit={handleSubmit} className="product-form" encType="multipart/form-data">
           <div className="form-section">
             <h3 className="section-title">Basic Information</h3>
             <div className="form-grid">
@@ -158,16 +168,34 @@ const EditProduct = () => {
               <div className="form-group">
                 <label className="form-label required">Category</label>
                 <select
-                  name="category"
+                  name="categoryId"
                   className="form-control"
-                  value={formData.category}
+                  value={formData.categoryId}
                   onChange={handleChange}
                   required
                 >
                   <option value="">Select Category</option>
                   {categories.map(category => (
-                    <option key={category.id} value={category.name}>
+                    <option key={category.id} value={category.id}>
                       {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label required">Shop</label>
+                <select
+                  name="shopId"
+                  className="form-control"
+                  value={formData.shopId}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select Shop</option>
+                  {shops.map(shop => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.name}
                     </option>
                   ))}
                 </select>
@@ -221,10 +249,10 @@ const EditProduct = () => {
                 <label className="form-label required">Stock Quantity</label>
                 <input
                   type="number"
-                  name="stock"
+                  name="stockQuantity"
                   className="form-control"
                   min="0"
-                  value={formData.stock}
+                  value={formData.stockQuantity}
                   onChange={handleChange}
                   required
                 />
@@ -233,88 +261,46 @@ const EditProduct = () => {
           </div>
 
           <div className="form-section">
-            <h3 className="section-title">Images</h3>
+            <h3 className="section-title">Product Image</h3>
             <div className="form-group">
-              <label className="form-label required">Main Image URL</label>
-              <input
-                type="url"
-                name="image"
-                className="form-control"
-                value={formData.image}
-                onChange={handleChange}
-                required
-              />
-              {formData.image && (
-                <div className="image-preview">
-                  <img 
-                    src={formData.image} 
-                    alt="Preview" 
-                    className="preview-image"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Additional Images</label>
-              {formData.images.map((image, index) => (
-                <div key={index} className="image-input-group">
-                  <input
-                    type="url"
-                    className="form-control"
-                    value={image}
-                    onChange={(e) => handleImageChange(index, e.target.value)}
-                  />
-                  {formData.images.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-danger"
-                      onClick={() => handleImageRemove(index)}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                onClick={handleImageAdd}
-              >
-                + Add Another Image
-              </button>
-            </div>
-          </div>
-
-          <div className="form-section">
-            <h3 className="section-title">Settings</h3>
-            <div className="form-grid-2">
-              <div className="form-group">
-                <label className="form-label">Status</label>
-                <select
-                  name="status"
-                  className="form-control"
-                  value={formData.status}
-                  onChange={handleChange}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    name="featured"
-                    checked={formData.featured}
-                    onChange={handleChange}
-                    className="checkbox-input"
-                  />
-                  <span className="checkbox-custom"></span>
-                  Featured Product
+              <label className="form-label">Product Image</label>
+              <div className="file-upload-area">
+                <input
+                  type="file"
+                  id="productImage"
+                  name="image"
+                  className="file-input"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                />
+                <label htmlFor="productImage" className="file-upload-label">
+                  <div className="file-upload-content">
+                    <span className="file-upload-icon">📷</span>
+                    <span className="file-upload-text">
+                      {imageFile ? imageFile.name : 'Choose new image (optional)'}
+                    </span>
+                    <span className="file-upload-subtext">
+                      Click to upload or drag and drop
+                    </span>
+                    <span className="file-upload-requirements">
+                      PNG, JPG, JPEG up to 5MB
+                    </span>
+                  </div>
                 </label>
               </div>
+              
+              {imagePreview && (
+                <div className="image-preview">
+                  <img 
+                    src={imagePreview} 
+                    alt="Product preview" 
+                    className="preview-image"
+                  />
+                  <div className="image-preview-info">
+                    {imageFile ? 'New image preview' : 'Current product image'}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

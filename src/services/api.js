@@ -260,6 +260,32 @@ export const productAPI = {
     
     return apiRequest(`/products/with-review-stats?${params.toString()}`);
   },
+
+  // NEW: Create product with image upload
+  createProduct: (productData, imageFile) => {
+    const formData = new FormData();
+    formData.append('product', new Blob([JSON.stringify(productData)], { type: 'application/json' }));
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+
+    return apiFormRequest('/products', formData);
+  },
+
+  // NEW: Update product with optional image upload
+  updateProduct: (id, productData, imageFile) => {
+    const formData = new FormData();
+    formData.append('product', new Blob([JSON.stringify(productData)], { type: 'application/json' }));
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+
+    return apiFormRequest(`/products/${id}`, formData, 'PUT');
+  },
+
+  // NEW: Delete product
+  deleteProduct: (id) => 
+    apiRequest(`/products/${id}`, { method: 'DELETE' }),
 };
 
 // Enhanced Cart APIs with correct parameter format
