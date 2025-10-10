@@ -1,4 +1,4 @@
-// src/pages/wishlist/index.jsx
+// src/components/Wishlist/index.jsx
 import { useState, useEffect } from "react";
 import axios from 'axios';
 import BreadcrumbCom from "../BreadcrumbCom";
@@ -257,7 +257,68 @@ export default function Wishlist({ wishlist = true }) {
     fetchFavorites();
   };
 
-  if (loading && wishlist) {
+  // If this is being used as a component in profile (wishlist=false), don't show full page layout
+  if (wishlist === false) {
+    return (
+      <div className="wishlist-tab-wrapper w-full">
+        <div className="w-full mb-6">
+          <h2 className="text-[22px] font-bold text-qblack">My Wishlist</h2>
+          <p className="text-qgray text-sm mt-1">Manage your favorite products</p>
+        </div>
+        
+        {loading ? (
+          <div className="flex justify-center items-center h-40">
+            <div className="text-lg">Loading your wishlist...</div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col justify-center items-center h-40 space-y-4">
+            <div className="text-red-500 text-center">{error}</div>
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : favoriteProducts.length === 0 ? (
+          <EmptyWishlistError />
+        ) : (
+          <>
+            <ProductsTable 
+              className="mb-[30px]" 
+              products={favoriteProducts} 
+              onRemoveItem={removeFromFavorites}
+            />
+            <div className="w-full mt-[30px] flex sm:justify-end justify-start">
+              <div className="sm:flex sm:space-x-[30px] items-center">
+                <button 
+                  type="button"
+                  onClick={clearWishlist}
+                  className="text-sm font-semibold text-qred mb-5 sm:mb-0 hover:text-red-700 transition-colors"
+                >
+                  Clean Wishlist
+                </button>
+                <div className="w-[180px] h-[50px]">
+                  <button 
+                    type="button" 
+                    className="yellow-btn w-full h-full"
+                    onClick={addAllToCart}
+                  >
+                    <div className="w-full text-sm font-semibold">
+                      Add to Cart All
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Full page version
+  if (loading) {
     return (
       <Layout>
         <div className="wishlist-page-wrapper w-full">
@@ -277,7 +338,7 @@ export default function Wishlist({ wishlist = true }) {
     );
   }
 
-  if (error && wishlist) {
+  if (error) {
     return (
       <Layout>
         <div className="wishlist-page-wrapper w-full">
@@ -308,7 +369,7 @@ export default function Wishlist({ wishlist = true }) {
 
   return (
     <Layout childrenClasses={wishlist ? "pt-0 pb-0" : ""}>
-      {wishlist === false || favoriteProducts.length === 0 ? (
+      {favoriteProducts.length === 0 ? (
         <div className="wishlist-page-wrapper w-full">
           <div className="container-x mx-auto">
             <BreadcrumbCom

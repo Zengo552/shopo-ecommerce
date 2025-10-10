@@ -47,6 +47,18 @@ const apiRequest = async (endpoint, options = {}) => {
       throw new Error('Authentication required. Please login again.');
     }
 
+    // Handle 404 - Endpoint not found
+    if (response.status === 404) {
+      console.warn('🔍 404 Endpoint not found:', endpoint);
+      throw new Error(`API endpoint not found: ${endpoint}`);
+    }
+
+    // Handle 500 - Server error
+    if (response.status === 500) {
+      console.error('💥 500 Server error for endpoint:', endpoint);
+      throw new Error(`Server error: ${endpoint}`);
+    }
+
     // Handle 204 No Content responses
     if (response.status === 204) {
       return { success: true, message: 'Operation completed successfully' };
@@ -108,7 +120,6 @@ export const reviewAPI = {
   // Get reviews for a product with pagination and filtering
   getByProduct: (productId, pagination = {}) => {
     const params = new URLSearchParams();
-    params.append('productId', productId);
     
     // Add pagination parameters
     Object.entries(pagination).forEach(([key, value]) => {
@@ -150,8 +161,8 @@ export const reviewAPI = {
     return apiRequest(`/api/reviews/product/${productId}/check?${params.toString()}`);
   },
 
-  // Get reviews by user
-  getByUser: (userId, pagination = {}) => {
+  // Get reviews by user email (FIXED: using the correct endpoint)
+  getByUserEmail: (userEmail, pagination = {}) => {
     const params = new URLSearchParams();
     
     // Add pagination parameters
@@ -161,12 +172,36 @@ export const reviewAPI = {
       }
     });
     
-    return apiRequest(`/api/reviews/user/${userId}?${params.toString()}`);
+    return apiRequest(`/api/reviews/user/email/${encodeURIComponent(userEmail)}?${params.toString()}`);
+  },
+
+  // Get reviews by user ID
+  getByUserId: (userId, pagination = {}) => {
+    const params = new URLSearchParams();
+    
+    // Add pagination parameters
+    Object.entries(pagination).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value);
+      }
+    });
+    
+    return apiRequest(`/api/reviews/user/id/${userId}?${params.toString()}`);
   },
 
   // Get recent reviews across all products
   getRecentReviews: (limit = 10) =>
     apiRequest(`/api/reviews/recent?limit=${limit}`),
+
+  // Get reviews by user (alias - uses email by default)
+  getByUser: (userIdentifier, pagination = {}) => {
+    // Determine if identifier is email or ID
+    if (typeof userIdentifier === 'string' && userIdentifier.includes('@')) {
+      return reviewAPI.getByUserEmail(userIdentifier, pagination);
+    } else {
+      return reviewAPI.getByUserId(userIdentifier, pagination);
+    }
+  },
 };
 
 // Enhanced Product APIs with review integration
@@ -261,7 +296,7 @@ export const productAPI = {
     return apiRequest(`/products/with-review-stats?${params.toString()}`);
   },
 
-  // NEW: Create product with image upload
+  // Create product with image upload
   createProduct: (productData, imageFile) => {
     const formData = new FormData();
     formData.append('product', new Blob([JSON.stringify(productData)], { type: 'application/json' }));
@@ -272,7 +307,7 @@ export const productAPI = {
     return apiFormRequest('/products', formData);
   },
 
-  // NEW: Update product with optional image upload
+  // Update product with optional image upload
   updateProduct: (id, productData, imageFile) => {
     const formData = new FormData();
     formData.append('product', new Blob([JSON.stringify(productData)], { type: 'application/json' }));
@@ -283,7 +318,7 @@ export const productAPI = {
     return apiFormRequest(`/products/${id}`, formData, 'PUT');
   },
 
-  // NEW: Delete product
+  // Delete product
   deleteProduct: (id) => 
     apiRequest(`/products/${id}`, { method: 'DELETE' }),
 };
@@ -292,7 +327,7 @@ export const productAPI = {
 export const cartAPI = {
   getCart: () => apiRequest('/api/cart'),
   
-  // FIXED: Send productId as query parameter instead of request body
+  // Send productId as query parameter instead of request body
   addOrUpdateItem: (cartItem) => {
     const { productId, quantity } = cartItem;
     
@@ -304,7 +339,6 @@ export const cartAPI = {
     // Send as query parameters instead of request body
     return apiRequest(`/api/cart/items?productId=${productId}&quantity=${quantity || 1}`, {
       method: 'POST',
-      // No body needed - parameters are in URL
     });
   },
   
@@ -577,6 +611,18 @@ const apiFormRequest = async (endpoint, formData, method = 'POST') => {
       throw new Error('Authentication required. Please login again.');
     }
 
+    // Handle 404 - Endpoint not found
+    if (response.status === 404) {
+      console.warn('🔍 404 Endpoint not found:', endpoint);
+      throw new Error(`API endpoint not found: ${endpoint}`);
+    }
+
+    // Handle 500 - Server error
+    if (response.status === 500) {
+      console.error('💥 500 Server error for endpoint:', endpoint);
+      throw new Error(`Server error: ${endpoint}`);
+    }
+
     // Handle 204 No Content
     if (response.status === 204) {
       return { success: true, message: 'Operation completed successfully' };
@@ -703,6 +749,141 @@ export const reviewUtils = {
     }
     
     return errors;
+  }
+};
+
+// Enhanced error handling for wishlist and reviews
+export const wishlistUtils = {
+  // Transform API response to consistent format
+  transformWishlistData: (apiResponse) => {
+    if (!apiResponse || !apiResponse.data) return [];
+    
+    return apiResponse.data.map(item => ({
+      id: item.id,
+      productId: item.productId || item.product?.id,
+      product: {
+        id: item.product?.id,
+        name: item.product?.name || item.product?.title,
+        title: item.product?.title || item.product?.name,
+        price: item.product?.price || item.product?.unitPrice,
+        image: item.product?.image || item.product?.imageUrl,
+        category: item.product?.category?.name || item.product?.categoryName,
+        stockStatus: item.product?.stockStatus || 'IN_STOCK',
+        stockQuantity: item.product?.stockQuantity || item.product?.quantity
+      },
+      quantity: item.quantity || 1,
+      createdAt: item.createdAt
+    }));
+  }
+};
+
+export const reviewDataUtils = {
+  // Transform API response to consistent format
+  transformReviewsData: (apiResponse) => {
+    if (!apiResponse || !apiResponse.reviews) return [];
+    
+    return apiResponse.reviews.map(review => ({
+      id: review.id,
+      productId: review.productId,
+      product: {
+        id: review.product?.id,
+        name: review.product?.name || review.product?.title,
+        title: review.product?.title || review.product?.name,
+        image: review.product?.image || review.product?.imageUrl
+      },
+      rating: review.rating || review.stars,
+      title: review.title,
+      comment: review.comment || review.content,
+      status: review.status || 'APPROVED',
+      createdAt: review.createdAt || review.date,
+      userEmail: review.userEmail,
+      userName: review.userName
+    }));
+  }
+};
+
+// Enhanced API functions with better error handling
+export const enhancedFavoriteAPI = {
+  ...favoriteAPI,
+  getUserFavorites: async () => {
+    try {
+      const response = await favoriteAPI.getUserFavorites();
+      return {
+        ...response,
+        data: wishlistUtils.transformWishlistData(response)
+      };
+    } catch (error) {
+      console.error('Enhanced favorite API error:', error);
+      throw error;
+    }
+  }
+};
+
+export const enhancedReviewAPI = {
+  ...reviewAPI,
+  getByUserEmail: async (userEmail) => {
+    try {
+      const response = await reviewAPI.getByUserEmail(userEmail);
+      return {
+        ...response,
+        data: reviewDataUtils.transformReviewsData(response)
+      };
+    } catch (error) {
+      console.error('Enhanced review API error:', error);
+      throw error;
+    }
+  },
+  
+  getByUserId: async (userId) => {
+    try {
+      const response = await reviewAPI.getByUserId(userId);
+      return {
+        ...response,
+        data: reviewDataUtils.transformReviewsData(response)
+      };
+    } catch (error) {
+      console.error('Enhanced review API error:', error);
+      throw error;
+    }
+  }
+};
+
+// Fallback API methods for missing endpoints
+export const fallbackAPI = {
+  // Fallback for user reviews if specific endpoints don't exist
+  getUserReviews: async (userEmail) => {
+    try {
+      console.warn('Using fallback method for user reviews - consider implementing proper endpoint');
+      
+      // Try to get all recent reviews and filter by user
+      const response = await reviewAPI.getRecentReviews(100);
+      if (response.success && response.reviews) {
+        const userReviews = response.reviews.filter(review => 
+          review.userEmail === userEmail
+        );
+        
+        return {
+          success: true,
+          message: 'User reviews retrieved successfully',
+          reviews: userReviews,
+          totalReviews: userReviews.length
+        };
+      }
+      return {
+        success: false,
+        message: 'Failed to fetch user reviews',
+        reviews: [],
+        totalReviews: 0
+      };
+    } catch (error) {
+      console.error('Fallback API error:', error);
+      return {
+        success: false,
+        message: error.message,
+        reviews: [],
+        totalReviews: 0
+      };
+    }
   }
 };
 

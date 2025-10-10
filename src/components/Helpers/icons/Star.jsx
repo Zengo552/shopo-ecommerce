@@ -1,15 +1,19 @@
-// icons/Star.jsx
-export default function Star({ filled = false }) {
+import React from "react";
+
+export default function Star({ filled = true, className = "" }) {
   return (
     <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      className="text-yellow-400"
+      className={`w-4 h-4 ${className}`}
+      fill={filled ? "#FFC107" : "none"}
+      stroke={filled ? "#FFC107" : "#D1D5DB"}
+      viewBox="0 0 24 24"
     >
-      <path d="M7 1L9.16 4.84L13.5 5.5L10.5 8.5L11.16 12.84L7 10.84L2.84 12.84L3.5 8.5L0.5 5.5L4.84 4.84L7 1Z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+      />
     </svg>
   );
 }

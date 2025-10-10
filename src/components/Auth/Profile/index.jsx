@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import datas from "../../../data/products.json";
+import { favoriteAPI, reviewAPI } from "../../../services/api";
 import BreadcrumbCom from "../../BreadcrumbCom";
 import Layout from "../../Partials/Layout";
 import IcoAdress from "./icons/IcoAdress";
@@ -25,9 +25,21 @@ import WishlistTab from "./tabs/WishlistTab";
 
 export default function Profile() {
   const [switchDashboard, setSwitchDashboard] = useState(false);
+  const [wishlistData, setWishlistData] = useState([]);
+  const [reviewsData, setReviewsData] = useState([]);
+  const [loading, setLoading] = useState({
+    wishlist: false,
+    reviews: false
+  });
+  const [error, setError] = useState({
+    wishlist: null,
+    reviews: null
+  });
+
   const location = useLocation();
   const getHashContent = location.hash.split("#");
   const [active, setActive] = useState("dashboard");
+
   useEffect(() => {
     setActive(
       getHashContent && getHashContent.length > 1
@@ -35,6 +47,125 @@ export default function Profile() {
         : "dashboard"
     );
   }, [getHashContent]);
+
+  // Fetch wishlist data when wishlist tab is active
+  useEffect(() => {
+    if (active === "wishlist") {
+      fetchWishlistData();
+    }
+  }, [active]);
+
+  // Fetch reviews data when reviews tab is active
+  useEffect(() => {
+    if (active === "review") {
+      fetchReviewsData();
+    }
+  }, [active]);
+
+  const fetchWishlistData = async () => {
+    setLoading(prev => ({ ...prev, wishlist: true }));
+    setError(prev => ({ ...prev, wishlist: null }));
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        setError(prev => ({ ...prev, wishlist: "Please log in to view wishlist" }));
+        setLoading(prev => ({ ...prev, wishlist: false }));
+        return;
+      }
+
+      // Use the same API endpoint as the main wishlist page
+      const response = await fetch('http://localhost:5521/favorites', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      console.log("Raw wishlist API response:", data);
+      
+      if (data.success) {
+        // Transform the data to match what WishlistTab expects
+        const transformedData = (data.favorites || data.data || []).map(favorite => {
+          const product = favorite.product || favorite;
+          return {
+            id: favorite.productId || favorite.id,
+            productId: favorite.productId || favorite.id,
+            product: {
+              id: favorite.productId || favorite.id,
+              name: product.name || product.productName || product.title,
+              title: product.name || product.productName || product.title,
+              price: product.price || product.unitPrice || favorite.price || 0,
+              image: product.image || product.imageUrl || product.thumbnail,
+              imageUrl: product.image || product.imageUrl || product.thumbnail,
+              thumbnail: product.thumbnail || product.image || product.imageUrl,
+              stockStatus: product.stockStatus || 'IN_STOCK',
+              stockQuantity: product.stockQuantity || product.stock || 10,
+              category: product.category?.name || product.categoryName || product.category || ""
+            },
+            quantity: favorite.quantity || 1,
+            createdAt: favorite.createdAt
+          };
+        });
+        
+        console.log("Transformed wishlist data:", transformedData);
+        setWishlistData(transformedData);
+      } else {
+        setError(prev => ({ ...prev, wishlist: data.message || "Failed to load wishlist" }));
+        setWishlistData([]);
+      }
+    } catch (err) {
+      console.error("Error fetching wishlist:", err);
+      setError(prev => ({ 
+        ...prev, 
+        wishlist: err.message || "Failed to load wishlist. Please try again." 
+      }));
+      setWishlistData([]);
+    } finally {
+      setLoading(prev => ({ ...prev, wishlist: false }));
+    }
+  };
+
+  const fetchReviewsData = async () => {
+    setLoading(prev => ({ ...prev, reviews: true }));
+    setError(prev => ({ ...prev, reviews: null }));
+    
+    try {
+      // Get user ID from localStorage or context
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      const userId = userData.id;
+      
+      if (userId) {
+        const response = await reviewAPI.getByUser(userId);
+        if (response.success) {
+          setReviewsData(response.data || []);
+        } else {
+          setError(prev => ({ ...prev, reviews: response.message || "Failed to load reviews" }));
+        }
+      } else {
+        setError(prev => ({ ...prev, reviews: "User not authenticated" }));
+      }
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+      setError(prev => ({ ...prev, reviews: err.message || "Failed to load reviews" }));
+    } finally {
+      setLoading(prev => ({ ...prev, reviews: false }));
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
+    window.location.href = '/login';
+  };
+
   return (
     <Layout childrenClasses="pt-0 pb-0">
       <div className="profile-page-wrapper w-full">
@@ -76,7 +207,7 @@ export default function Profile() {
                             <IcoDashboard />
                           </span>
                           <span className=" font-normal text-base">
-                            Dashbaord
+                            Dashboard
                           </span>
                         </div>
                       </Link>
@@ -88,7 +219,7 @@ export default function Profile() {
                             <IcoPeople />
                           </span>
                           <span className=" font-normal text-base">
-                            Parsonal Info
+                            Personal Info
                           </span>
                         </div>
                       </Link>
@@ -177,16 +308,19 @@ export default function Profile() {
                       </Link>
                     </div>
                     <div className="item group">
-                      <Link to="/profile#profile">
+                      <button 
+                        onClick={handleLogout}
+                        className="w-full text-left"
+                      >
                         <div className="flex space-x-3 items-center text-qgray hover:text-qblack">
                           <span>
                             <IcoLogout />
                           </span>
                           <span className=" font-normal text-base">
-                            Logoout
+                            Log out
                           </span>
                         </div>
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -208,7 +342,13 @@ export default function Profile() {
                       </>
                     ) : active === "wishlist" ? (
                       <>
-                        <WishlistTab />
+                        <WishlistTab 
+                          wishlistData={wishlistData}
+                          loading={loading.wishlist}
+                          error={error.wishlist}
+                          onRefresh={fetchWishlistData}
+                          onWishlistUpdate={fetchWishlistData}
+                        />
                       </>
                     ) : active === "address" ? (
                       <>
@@ -224,7 +364,12 @@ export default function Profile() {
                       </>
                     ) : active === "review" ? (
                       <>
-                        <ReviewTab products={datas.products} />
+                        <ReviewTab 
+                          reviewsData={reviewsData}
+                          loading={loading.reviews}
+                          error={error.reviews}
+                          onRefresh={fetchReviewsData}
+                        />
                       </>
                     ) : (
                       ""
